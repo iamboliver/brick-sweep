@@ -1,0 +1,42 @@
+name: LegoMissingParts
+options:
+  bundleIdPrefix: com.oliverbarwell
+  deploymentTarget:
+    iOS: "18.0"
+  xcodeVersion: "16.0"
+  minimumXcodeGenVersion: "2.38.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+
+targets:
+  LegoMissingParts:
+    type: application
+    platform: iOS
+    sources:
+      - LegoMissingParts
+    info:
+      path: LegoMissingParts/Info.plist
+      properties:
+        UILaunchScreen: {}
+        CFBundleDisplayName: BrickCheck
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.oliverbarwell.LegoMissingParts
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  LegoMissingPartsTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - LegoMissingPartsTests
+    dependencies:
+      - target: LegoMissingParts
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.oliverbarwell.LegoMissingPartsTests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/LegoMissingParts.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LegoMissingParts"
+        BUNDLE_LOADER: "$(TEST_HOST)"
