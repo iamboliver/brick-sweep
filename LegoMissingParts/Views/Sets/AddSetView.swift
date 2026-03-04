@@ -13,7 +13,7 @@ struct AddSetView: View {
         }
         .sheet(isPresented: $showSheet) {
             VStack(spacing: AppTheme.Spacing.lg) {
-                Text("Add LEGO Set")
+                Text("Add Set")
                     .font(AppTheme.Typography.headline)
 
                 TextField("Set number (e.g. 75192)", text: $viewModel.setNumInput)

@@ -1,15 +1,15 @@
 # BrickCheck
 
-A native iOS app for tracking missing parts across your LEGO sets. Import sets from [Rebrickable](https://rebrickable.com), tap to mark pieces as missing, and export a BrickLink wanted list to order replacements.
+A native iOS app for tracking missing parts across your brick sets. Import sets from [Rebrickable](https://rebrickable.com), tap to mark pieces as missing, and export a BrickLink wanted list to order replacements.
 
 ## Features
 
-- **Import sets by number** — fetches set details, full parts inventory, and minifigures from the Rebrickable API
+- **Import sets by number** — fetches set details, full parts inventory, and figures from the Rebrickable API
 - **Tap-to-track missing parts** — tap a part card to increment the missing count; long-press for more options
 - **Global missing parts view** — aggregates missing parts across all your sets, grouped by part and colour
 - **Export to BrickLink** — generates BrickLink XML (wanted list format) or CSV, ready to copy or share
 - **Completion tracking** — per-set progress rings and summary stats
-- **Filter and sort** — filter by missing/accounted for, sort by colour (LEGO manual order) or part number, search by part number or element ID
+- **Filter and sort** — filter by missing/accounted for, sort by colour or part number, search by part number or element ID
 - **Rebrickable sync** — optionally add imported sets to your Rebrickable collection
 
 ## Screenshots
@@ -113,4 +113,4 @@ Tests cover DTO decoding, export formatting (including XML/CSV escaping), and co
 
 ## Licence
 
-This project is not affiliated with or endorsed by the LEGO Group, BrickLink, or Rebrickable.
+LEGO is a trademark of the LEGO Group, which does not sponsor, authorise, or endorse this project. BrickLink and Rebrickable are independent services not affiliated with this project.

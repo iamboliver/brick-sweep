@@ -25,7 +25,7 @@ struct SetsTabView: View {
                     ContentUnavailableView(
                         "No Sets Added",
                         systemImage: "square.stack.3d.up.slash",
-                        description: Text("Enter a LEGO set number above to get started.")
+                        description: Text("Enter a set number above to get started.")
                     )
                     .tint(AppTheme.legoYellow)
                 } else {
@@ -56,7 +56,7 @@ struct SetsTabView: View {
                     .listStyle(.insetGrouped)
                 }
             }
-            .navigationTitle("LEGO Sets")
+            .navigationTitle("My Sets")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: LegoSet.self) { legoSet in
                 PartListView(legoSet: legoSet)

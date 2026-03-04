@@ -7,7 +7,7 @@ struct SetLoadingOverlay: View {
         "Consulting the instruction manual...",
         "Stepping on a stray piece...",
         "Locating all 7,541 pieces...",
-        "Asking the minifigs for help...",
+        "Asking the figures for help...",
         "Organising by colour (obviously)...",
         "Following the instructions for once...",
         "Searching the carpet on hands and knees...",
