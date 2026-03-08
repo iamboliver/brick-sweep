@@ -103,6 +103,17 @@ struct SettingsTabView: View {
                     }
                 }
 
+                Section {
+                    Label("Your API key and user token are stored securely in your device's Keychain and are only sent directly to rebrickable.com. This app has no server — your data never leaves your device.", systemImage: "lock.shield")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Link(destination: URL(string: "https://github.com/iamboliver/brick-check")!) {
+                        Label("View Source Code", systemImage: "chevron.left.forwardslash.chevron.right")
+                    }
+                } header: {
+                    Label("Privacy", systemImage: "hand.raised.fill")
+                }
+
                 Section("About") {
                     LabeledContent {
                         Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")
