@@ -10,6 +10,8 @@ final class MissingPartsViewModel {
     var exportText: String = ""
     var showExportOptions = false
     var exportFormat: ExportFormat = .brickLinkXML
+    var saveErrorMessage: String?
+    var showSaveError = false
 
     enum ExportFormat: String, CaseIterable {
         case brickLinkXML = "BrickLink XML"
@@ -45,7 +47,12 @@ final class MissingPartsViewModel {
             instance.replacedQty += instance.missingQty
             instance.missingQty = 0
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            saveErrorMessage = error.localizedDescription
+            showSaveError = true
+        }
         refresh(modelContext: modelContext)
     }
 

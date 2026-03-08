@@ -59,5 +59,7 @@ struct SetRowView: View {
             }
         }
         .padding(.vertical, AppTheme.Spacing.xs)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(legoSet.name), set \(legoSet.setNum), \(legoSet.year). \(missingCount > 0 ? "\(missingCount) missing parts" : "All \(legoSet.numParts) parts accounted for")")
     }
 }

@@ -32,5 +32,7 @@ struct CompletionRing: View {
                 .foregroundStyle(ringColor)
         }
         .frame(width: size, height: size)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(Int(fraction * 100)) percent complete, \(completed) of \(total)")
     }
 }

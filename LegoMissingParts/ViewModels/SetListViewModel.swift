@@ -34,6 +34,11 @@ final class SetListViewModel {
 
     func deleteSet(_ legoSet: LegoSet, modelContext: ModelContext) {
         modelContext.delete(legoSet)
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
     }
 }

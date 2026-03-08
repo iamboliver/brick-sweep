@@ -16,6 +16,8 @@ struct ColorBadge: View {
                 .font(AppTheme.Typography.caption)
                 .foregroundStyle(.secondary)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Color: \(colorName)")
     }
 
     private var color: Color {

@@ -4,6 +4,7 @@ struct PartImage: View {
     let url: String?
     var size: CGFloat = 56
     var fallbackIcon: String = "puzzlepiece"
+    var accessibilityName: String?
 
     var body: some View {
         Group {
@@ -29,6 +30,7 @@ struct PartImage: View {
         .frame(width: size, height: size)
         .background(Color(.tertiarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.sm))
+        .accessibilityLabel(accessibilityName.map { "Image of \($0)" } ?? "Part image")
     }
 
     private var fallbackView: some View {

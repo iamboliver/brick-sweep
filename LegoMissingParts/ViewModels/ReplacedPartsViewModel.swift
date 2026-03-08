@@ -7,6 +7,8 @@ final class ReplacedPartsViewModel {
     var replacedParts: [GlobalReplacedPart] = []
     var sortOption: PartSortOption = .color
     var searchText: String = ""
+    var saveErrorMessage: String?
+    var showSaveError = false
 
     var filteredReplacedParts: [GlobalReplacedPart] {
         let query = searchText.trimmingCharacters(in: .whitespaces)
@@ -37,7 +39,12 @@ final class ReplacedPartsViewModel {
             instance.missingQty += instance.replacedQty
             instance.replacedQty = 0
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            saveErrorMessage = error.localizedDescription
+            showSaveError = true
+        }
         refresh(modelContext: modelContext)
     }
 }

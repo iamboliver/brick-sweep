@@ -47,5 +47,8 @@ struct MissingPartRowView: View {
                 .background(AppTheme.legoRed, in: Circle())
         }
         .padding(.vertical, AppTheme.Spacing.xs)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(part.name), \(part.colorName), \(part.totalMissingQty) missing across \(part.contributingSets.joined(separator: ", "))")
+        .accessibilityHint("Swipe left to mark as replaced")
     }
 }

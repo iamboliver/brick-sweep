@@ -17,6 +17,8 @@ targets:
     platform: iOS
     sources:
       - LegoMissingParts
+    resources:
+      - path: LegoMissingParts/PrivacyInfo.xcprivacy
     info:
       path: LegoMissingParts/Info.plist
       properties:

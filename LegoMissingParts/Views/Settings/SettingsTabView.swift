@@ -1,15 +1,22 @@
 import SwiftUI
 
 struct SettingsTabView: View {
-    private static let keychainKey = "rebrickable_api_key"
-    private static let userTokenKey = "rebrickable_user_token"
+    private static let keychainKey = AppConstants.Keychain.apiKey
+    private static let userTokenKey = AppConstants.Keychain.userToken
 
     @FocusState private var isFieldFocused: Bool
     @State private var apiKey: String = ""
     @State private var showSavedConfirmation = false
     @State private var userToken: String = ""
     @State private var showTokenSavedConfirmation = false
-    @State private var syncOnImport: Bool = UserDefaults.standard.bool(forKey: "syncSetsToRebrickable")
+    @State private var syncOnImport: Bool = UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.syncSetsToRebrickable)
+    @State private var isTestingKey = false
+    @State private var testResult: TestResult?
+
+    private enum TestResult {
+        case success
+        case failure(String)
+    }
 
     var body: some View {
         NavigationStack {
@@ -29,10 +36,37 @@ struct SettingsTabView: View {
                         }
                     }
                     .disabled(apiKey.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                    Button {
+                        testAPIKey()
+                    } label: {
+                        HStack {
+                            Text("Test Connection")
+                            Spacer()
+                            if isTestingKey {
+                                ProgressView()
+                            } else if let result = testResult {
+                                switch result {
+                                case .success:
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                case .failure:
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.red)
+                                }
+                            }
+                        }
+                    }
+                    .disabled(apiKey.trimmingCharacters(in: .whitespaces).isEmpty || isTestingKey)
                 } header: {
                     Label("API Key", systemImage: "key.fill")
                 } footer: {
-                    Text("Get a free API key from rebrickable.com/api/")
+                    if case .failure(let message) = testResult {
+                        Text(message)
+                            .foregroundStyle(.red)
+                    } else {
+                        Text("Get a free API key from rebrickable.com/api/")
+                    }
                 }
 
                 Section {
@@ -52,7 +86,7 @@ struct SettingsTabView: View {
 
                     Toggle("Sync sets on import", isOn: $syncOnImport)
                         .onChange(of: syncOnImport) { _, newValue in
-                            UserDefaults.standard.set(newValue, forKey: "syncSetsToRebrickable")
+                            UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaultsKeys.syncSetsToRebrickable)
                         }
                 } header: {
                     Label("Rebrickable Sync", systemImage: "arrow.triangle.2.circlepath")
@@ -108,20 +142,34 @@ struct SettingsTabView: View {
             }
         }
     }
+
+    private func testAPIKey() {
+        isTestingKey = true
+        testResult = nil
+        // Save the current key first so the API client picks it up
+        _ = KeychainHelper.save(key: Self.keychainKey, value: apiKey)
+        let client = RebrickableAPIClient(apiKeyProvider: { APIKeyProvider.getAPIKey() })
+        Task {
+            do {
+                // Fetch color 0 (Black) as a lightweight connectivity test
+                _ = try await client.fetchColor(id: 0)
+                testResult = .success
+            } catch {
+                testResult = .failure(error.localizedDescription)
+            }
+            isTestingKey = false
+        }
+    }
 }
 
 enum APIKeyProvider {
-    private static let keychainKey = "rebrickable_api_key"
-
     static func getAPIKey() -> String? {
-        KeychainHelper.read(key: keychainKey)
+        KeychainHelper.read(key: AppConstants.Keychain.apiKey)
     }
 }
 
 enum SyncTokenProvider {
-    private static let keychainKey = "rebrickable_user_token"
-
     static func getUserToken() -> String? {
-        KeychainHelper.read(key: keychainKey)
+        KeychainHelper.read(key: AppConstants.Keychain.userToken)
     }
 }

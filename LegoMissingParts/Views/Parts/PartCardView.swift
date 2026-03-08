@@ -92,6 +92,9 @@ struct PartCardView: View {
             }
         }
         .sensoryFeedback(.impact, trigger: part.missingQty)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(part.name), \(part.colorName), \(part.missingQty) of \(part.requiredQty) missing")
+        .accessibilityHint("Tap to change missing count")
         .contextMenu {
             Button("Decrement Missing", systemImage: "minus.circle") {
                 decrementMissing()

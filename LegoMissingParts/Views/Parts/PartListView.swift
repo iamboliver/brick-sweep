@@ -50,7 +50,9 @@ struct PartListView: View {
             .padding(.horizontal)
             .padding(.bottom, AppTheme.Spacing.sm)
 
-            if filtered.isEmpty {
+            if filtered.isEmpty && !viewModel.searchText.trimmingCharacters(in: .whitespaces).isEmpty {
+                ContentUnavailableView.search(text: viewModel.searchText)
+            } else if filtered.isEmpty {
                 ContentUnavailableView {
                     Label(emptyTitle, systemImage: emptyIcon)
                 } description: {

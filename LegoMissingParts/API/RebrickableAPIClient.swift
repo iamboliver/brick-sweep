@@ -10,11 +10,16 @@ protocol RebrickableAPIClientProtocol: Sendable {
 
 struct RebrickableAPIClient: RebrickableAPIClientProtocol {
     private let baseURL = "https://rebrickable.com/api/v3/lego/"
+    private let maxPages = 100
     private let session: URLSession
     private let apiKeyProvider: @Sendable () -> String?
 
     init(
-        session: URLSession = .shared,
+        session: URLSession = {
+            let config = URLSessionConfiguration.default
+            config.timeoutIntervalForRequest = 15
+            return URLSession(configuration: config)
+        }(),
         apiKeyProvider: @escaping @Sendable () -> String?
     ) {
         self.session = session
@@ -30,11 +35,13 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
         var allParts: [RebrickableSetPartDTO] = []
         var urlString: String? =
             "\(baseURL)sets/\(setNum)/parts/?page_size=1000&inc_color_details=1&inc_part_details=1&inc_minifig_parts=1"
+        var pageCount = 0
 
-        while let currentURL = urlString {
+        while let currentURL = urlString, pageCount < maxPages {
             let page: PaginatedResponse<RebrickableSetPartDTO> = try await fetch(urlString: currentURL)
             allParts.append(contentsOf: page.results)
             urlString = page.next
+            pageCount += 1
         }
 
         return allParts
@@ -43,11 +50,13 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
     func fetchSetMinifigs(setNum: String) async throws -> [RebrickableMinifigDTO] {
         var allMinifigs: [RebrickableMinifigDTO] = []
         var urlString: String? = "\(baseURL)sets/\(setNum)/minifigs/"
+        var pageCount = 0
 
-        while let currentURL = urlString {
+        while let currentURL = urlString, pageCount < maxPages {
             let page: PaginatedResponse<RebrickableMinifigDTO> = try await fetch(urlString: currentURL)
             allMinifigs.append(contentsOf: page.results)
             urlString = page.next
+            pageCount += 1
         }
 
         return allMinifigs

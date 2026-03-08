@@ -26,6 +26,8 @@ struct MissingPartsTabView: View {
                         systemImage: "checkmark.circle",
                         description: Text("All parts accounted for. Tap parts in a set to mark them as missing.")
                     )
+                } else if viewModel.filteredMissingParts.isEmpty {
+                    ContentUnavailableView.search(text: viewModel.searchText)
                 } else {
                     List {
                         Section {
@@ -87,8 +89,18 @@ struct MissingPartsTabView: View {
             .sheet(isPresented: $viewModel.showExportOptions) {
                 ExportOptionsView(viewModel: viewModel)
             }
+            .refreshable {
+                viewModel.refresh(modelContext: modelContext)
+            }
             .onAppear {
                 viewModel.refresh(modelContext: modelContext)
+            }
+            .alert("Save Error", isPresented: $viewModel.showSaveError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                if let error = viewModel.saveErrorMessage {
+                    Text(error)
+                }
             }
         }
     }

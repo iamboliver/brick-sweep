@@ -47,5 +47,8 @@ struct ReplacedPartRowView: View {
                 .background(AppTheme.completedGreen, in: Circle())
         }
         .padding(.vertical, AppTheme.Spacing.xs)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(part.name), \(part.colorName), \(part.totalReplacedQty) replaced across \(part.contributingSets.joined(separator: ", "))")
+        .accessibilityHint("Swipe left to undo replacement")
     }
 }

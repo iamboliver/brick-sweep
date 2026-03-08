@@ -26,6 +26,8 @@ struct ReplacedPartsTabView: View {
                         systemImage: "checkmark.circle",
                         description: Text("Swipe left on missing parts to mark them as replaced.")
                     )
+                } else if viewModel.filteredReplacedParts.isEmpty {
+                    ContentUnavailableView.search(text: viewModel.searchText)
                 } else {
                     List {
                         Section {
@@ -76,8 +78,18 @@ struct ReplacedPartsTabView: View {
             .onChange(of: viewModel.sortOption) {
                 viewModel.refresh(modelContext: modelContext)
             }
+            .refreshable {
+                viewModel.refresh(modelContext: modelContext)
+            }
             .onAppear {
                 viewModel.refresh(modelContext: modelContext)
+            }
+            .alert("Save Error", isPresented: $viewModel.showSaveError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                if let error = viewModel.saveErrorMessage {
+                    Text(error)
+                }
             }
         }
     }
