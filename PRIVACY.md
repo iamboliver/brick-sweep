@@ -36,7 +36,7 @@ BrickCheck does not knowingly collect any information from anyone, including chi
 
 Questions about this policy? Open an issue at
 [github.com/iamboliver/brick-check](https://github.com/iamboliver/brick-check)
-or email **[your-email@example.com]**.
+or email **brickcheckapp@gmail.com**.
 
 ## Changes
 
