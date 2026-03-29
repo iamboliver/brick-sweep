@@ -2,6 +2,10 @@
 
 A native iOS app for tracking missing parts across your brick sets. Import sets from [Rebrickable](https://rebrickable.com), tap to mark pieces as missing, and export a BrickLink wanted list to order replacements.
 
+# Why I build this
+
+Built for my autistic son, who is obsessed with Lego but struggles to pack up sets. I needed a fast way to track what was missing and order replacements without spending an hour on BrickLink manually.
+
 ## Features
 
 - **Import sets by number** — fetches set details, full parts inventory, and figures from the Rebrickable API
