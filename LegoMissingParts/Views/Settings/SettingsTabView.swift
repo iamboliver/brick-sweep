@@ -2,14 +2,10 @@ import SwiftUI
 
 struct SettingsTabView: View {
     private static let keychainKey = AppConstants.Keychain.apiKey
-    private static let userTokenKey = AppConstants.Keychain.userToken
 
     @FocusState private var isFieldFocused: Bool
     @State private var apiKey: String = ""
     @State private var showSavedConfirmation = false
-    @State private var userToken: String = ""
-    @State private var showTokenSavedConfirmation = false
-    @State private var syncOnImport: Bool = UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.syncSetsToRebrickable)
     @State private var isTestingKey = false
     @State private var testResult: TestResult?
 
@@ -65,38 +61,33 @@ struct SettingsTabView: View {
                         Text(message)
                             .foregroundStyle(.red)
                     } else {
-                        Text("Get a free API key from rebrickable.com/api/")
+                        Text("BrickCheck uses Rebrickable's free community database of 1M+ LEGO sets and parts. Not affiliated with or endorsed by Rebrickable.")
                     }
                 }
 
                 Section {
-                    SecureField("User Token", text: $userToken)
-                        .textContentType(.password)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-
-                    Button("Save Token") {
-                        isFieldFocused = false
-                        let success = KeychainHelper.save(key: Self.userTokenKey, value: userToken)
-                        if success {
-                            showTokenSavedConfirmation = true
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Rebrickable Sync")
+                                .font(.body)
+                            Text("Coming soon")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
+                    } icon: {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .foregroundStyle(.secondary)
                     }
-                    .disabled(userToken.trimmingCharacters(in: .whitespaces).isEmpty)
-
-                    Toggle("Sync sets on import", isOn: $syncOnImport)
-                        .onChange(of: syncOnImport) { _, newValue in
-                            UserDefaults.standard.set(newValue, forKey: AppConstants.UserDefaultsKeys.syncSetsToRebrickable)
-                        }
+                    .foregroundStyle(.secondary)
                 } header: {
-                    Label("Rebrickable Sync", systemImage: "arrow.triangle.2.circlepath")
+                    Label("Sync", systemImage: "arrow.triangle.2.circlepath")
                 } footer: {
-                    Text("Paste your user token from rebrickable.com → Account → Settings → API. When enabled, imported sets are automatically added to your Rebrickable collection.")
+                    Text("Automatic syncing of your sets to your Rebrickable collection is coming in a future update.")
                 }
 
                 Section("Resources") {
                     Link(destination: URL(string: "https://rebrickable.com/api/")!) {
-                        Label("Get API Key", systemImage: "globe")
+                        Label("Get a free Rebrickable API key", systemImage: "globe")
                     }
                     Link(destination: URL(string: "https://rebrickable.com/api/v3/docs/")!) {
                         Label("Rebrickable Documentation", systemImage: "book")
@@ -107,6 +98,9 @@ struct SettingsTabView: View {
                     Label("Your API key and user token are stored securely in your device's Keychain and are only sent directly to rebrickable.com. This app has no server — your data never leaves your device.", systemImage: "lock.shield")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                    Link(destination: URL(string: "https://github.com/iamboliver/brick-check/blob/main/PRIVACY.md")!) {
+                        Label("Privacy Policy", systemImage: "hand.raised")
+                    }
                     Link(destination: URL(string: "https://github.com/iamboliver/brick-check")!) {
                         Label("View Source Code", systemImage: "chevron.left.forwardslash.chevron.right")
                     }
@@ -140,15 +134,9 @@ struct SettingsTabView: View {
             .alert("API Key Saved", isPresented: $showSavedConfirmation) {
                 Button("OK", role: .cancel) {}
             }
-            .alert("User Token Saved", isPresented: $showTokenSavedConfirmation) {
-                Button("OK", role: .cancel) {}
-            }
             .onAppear {
                 if let stored = KeychainHelper.read(key: Self.keychainKey) {
                     apiKey = stored
-                }
-                if let storedToken = KeychainHelper.read(key: Self.userTokenKey) {
-                    userToken = storedToken
                 }
             }
         }

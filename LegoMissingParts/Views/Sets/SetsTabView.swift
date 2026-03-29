@@ -9,8 +9,10 @@ struct SetsTabView: View {
             apiClient: RebrickableAPIClient(apiKeyProvider: { APIKeyProvider.getAPIKey() })
         )
     )
+    @Environment(AppNavigator.self) private var navigator
     @State private var showDeleteConfirmation = false
     @State private var setToDelete: LegoSet?
+    @State private var hasAPIKey = APIKeyProvider.getAPIKey() != nil
 
     private var totalMissingCount: Int {
         sets.reduce(0) { sum, set in
@@ -22,12 +24,27 @@ struct SetsTabView: View {
         NavigationStack {
             Group {
                 if sets.isEmpty && !viewModel.isLoading {
-                    ContentUnavailableView(
-                        "No Sets Added",
-                        systemImage: "square.stack.3d.up.slash",
-                        description: Text("Enter a set number above to get started.")
-                    )
-                    .tint(AppTheme.legoYellow)
+                    if !hasAPIKey {
+                        ContentUnavailableView {
+                            Label("API Key Required", systemImage: "key.fill")
+                        } description: {
+                            Text("BrickCheck looks up set part lists using Rebrickable's free community database — over 1 million LEGO parts catalogued by fans.\n\nAdd your free API key in the **Settings** tab to get started.")
+                        } actions: {
+                            Button("Open Settings") {
+                                navigator.selectedTab = .settings
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(AppTheme.legoYellow)
+                        }
+                        .tint(AppTheme.legoYellow)
+                    } else {
+                        ContentUnavailableView(
+                            "No Sets Added",
+                            systemImage: "square.stack.3d.up.slash",
+                            description: Text("Enter a set number above to get started.")
+                        )
+                        .tint(AppTheme.legoYellow)
+                    }
                 } else {
                     List {
                         Section {
@@ -73,6 +90,9 @@ struct SetsTabView: View {
                 }
             }
             .animation(AppTheme.Animation.easeInOut, value: viewModel.isLoading)
+            .onAppear {
+                hasAPIKey = APIKeyProvider.getAPIKey() != nil
+            }
             .alert("Error", isPresented: $viewModel.showError) {
                 Button("OK", role: .cancel) {}
             } message: {

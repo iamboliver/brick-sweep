@@ -81,11 +81,12 @@ struct SetImportService: Sendable {
 
         try modelContext.save()
 
-        if UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.syncSetsToRebrickable),
-           let userToken = SyncTokenProvider.getUserToken(), !userToken.isEmpty
-        {
-            try? await apiClient.addSetToCollection(userToken: userToken, setNum: normalized)
-        }
+        // Rebrickable sync disabled — coming soon
+        // if UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.syncSetsToRebrickable),
+        //    let userToken = SyncTokenProvider.getUserToken(), !userToken.isEmpty
+        // {
+        //     try? await apiClient.addSetToCollection(userToken: userToken, setNum: normalized)
+        // }
 
         return legoSet
     }
