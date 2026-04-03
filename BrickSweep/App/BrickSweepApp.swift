@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 @main
-struct LegoMissingPartsApp: App {
+struct BrickSweepApp: App {
     @State private var navigator = AppNavigator()
 
     var body: some Scene {

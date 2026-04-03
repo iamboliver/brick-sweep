@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-@testable import LegoMissingParts
+@testable import BrickSweep
 
 @Suite("DTO Decoding Tests")
 struct DTODecodingTests {
