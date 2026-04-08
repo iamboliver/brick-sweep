@@ -16,12 +16,18 @@ struct SetLoadingOverlay: View {
 
     @State private var bouncing = false
     @State private var phraseIndex = Int.random(in: 0..<phrases.count)
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let timer = Timer.publish(every: 2.5, on: .main, in: .common).autoconnect()
 
     var body: some View {
         VStack(spacing: AppTheme.Spacing.lg) {
-            brickView
+            if reduceMotion {
+                ProgressView()
+                    .controlSize(.large)
+            } else {
+                brickView
+            }
             Text(Self.phrases[phraseIndex])
                 .font(AppTheme.Typography.subheadline)
                 .foregroundStyle(.secondary)
@@ -32,7 +38,10 @@ struct SetLoadingOverlay: View {
         .padding(AppTheme.Spacing.xl)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: AppTheme.Radius.lg))
         .elevatedShadow()
+        .accessibilityLabel("Loading set, please wait")
+        .accessibilityAddTraits(.updatesFrequently)
         .onReceive(timer) { _ in
+            guard !reduceMotion else { return }
             var next: Int
             repeat {
                 next = Int.random(in: 0..<Self.phrases.count)

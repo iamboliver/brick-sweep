@@ -11,6 +11,7 @@ struct AddSetView: View {
         } label: {
             Image(systemName: "plus")
         }
+        .accessibilityLabel("Add set")
         .sheet(isPresented: $showSheet) {
             VStack(spacing: AppTheme.Spacing.lg) {
                 Text("Add Set")
@@ -33,7 +34,7 @@ struct AddSetView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(AppTheme.legoYellow)
-                .foregroundStyle(.black)
+                .foregroundStyle(Color(.label))
                 .controlSize(.large)
                 .disabled(
                     viewModel.setNumInput.trimmingCharacters(in: .whitespaces).isEmpty
@@ -42,6 +43,7 @@ struct AddSetView: View {
             }
             .padding(AppTheme.Spacing.xl)
             .presentationDetents([.height(220)])
+            .presentationDragIndicator(.visible)
         }
     }
 

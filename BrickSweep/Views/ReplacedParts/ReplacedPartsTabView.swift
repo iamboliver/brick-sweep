@@ -58,7 +58,7 @@ struct ReplacedPartsTabView: View {
                 }
             }
             .navigationTitle("Replaced Parts")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .searchable(text: $viewModel.searchText, prompt: "Search by part number")
             .toolbar {
                 if !viewModel.replacedParts.isEmpty {

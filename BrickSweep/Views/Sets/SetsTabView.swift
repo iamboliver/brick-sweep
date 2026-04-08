@@ -71,7 +71,7 @@ struct SetsTabView: View {
                 }
             }
             .navigationTitle("My Sets")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .navigationDestination(for: LegoSet.self) { legoSet in
                 PartListView(legoSet: legoSet)
             }

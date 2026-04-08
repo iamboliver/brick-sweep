@@ -58,7 +58,7 @@ struct MissingPartsTabView: View {
                 }
             }
             .navigationTitle("Missing Parts")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .searchable(text: $viewModel.searchText, prompt: "Search by part number")
             .toolbar {
                 if !viewModel.missingParts.isEmpty {
