@@ -41,7 +41,7 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
     func fetchSetParts(setNum: String) async throws -> [RebrickableSetPartDTO] {
         var allParts: [RebrickableSetPartDTO] = []
         var urlString: String? =
-            "\(baseURL)sets/\(setNum)/parts/?page_size=1000&inc_color_details=1&inc_part_details=1&inc_minifig_parts=1"
+            "\(baseURL)sets/\(setNum)/parts/?page_size=500&inc_color_details=1&inc_part_details=1&inc_minifig_parts=1"
         var pageCount = 0
 
         while let currentURL = urlString, pageCount < maxPages {

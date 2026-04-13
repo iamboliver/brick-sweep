@@ -54,7 +54,7 @@ struct SetImportService: Sendable {
 
         do {
             var nextURL: String? =
-                "\(rebrickableBase)sets/\(setNum)/parts/?page_size=1000&inc_color_details=1&inc_part_details=1&inc_minifig_parts=1"
+                "\(rebrickableBase)sets/\(setNum)/parts/?page_size=500&inc_color_details=1&inc_part_details=1&inc_minifig_parts=1"
 
             while let url = nextURL {
                 let page = try await apiClient.fetchSetPartsPage(urlString: url)
