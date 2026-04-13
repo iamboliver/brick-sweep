@@ -12,6 +12,7 @@ protocol RebrickableAPIClientProtocol: Sendable {
 struct RebrickableAPIClient: RebrickableAPIClientProtocol {
     private let baseURL = "https://rebrickable.com/api/v3/lego/"
     private let maxPages = 100
+    private static let userAgent = "BrickSweep/1.0"
     private let session: URLSession
     private let apiKeyProvider: @Sendable () -> String?
 
@@ -88,6 +89,7 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
         request.httpMethod = "POST"
         request.setValue("key \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
         request.httpBody = "set_num=\(setNum)".data(using: .utf8)
 
         let data: Data
@@ -120,6 +122,7 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
         var request = URLRequest(url: url)
         request.setValue("key \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
 
         let data: Data
         let response: URLResponse
