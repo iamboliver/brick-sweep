@@ -18,18 +18,28 @@ final class SetListViewModel {
     func loadSet(modelContext: ModelContext) async {
         guard !setNumInput.trimmingCharacters(in: .whitespaces).isEmpty else { return }
 
+        let input = setNumInput
         isLoading = true
         errorMessage = nil
+        var createdSet: LegoSet?
 
         do {
-            _ = try await importService.importSet(setNum: setNumInput, modelContext: modelContext)
+            createdSet = try await importService.createSet(setNum: input, modelContext: modelContext)
             setNumInput = ""
+            isLoading = false  // overlay dismisses; set row appears with spinner
+
+            if let set = createdSet {
+                try await importService.loadParts(into: set, setNum: set.setNum, modelContext: modelContext)
+            }
         } catch {
+            if let partial = createdSet {
+                modelContext.delete(partial)
+                try? modelContext.save()
+            }
             errorMessage = error.localizedDescription
             showError = true
+            isLoading = false
         }
-
-        isLoading = false
     }
 
     func deleteSet(_ legoSet: LegoSet, modelContext: ModelContext) {

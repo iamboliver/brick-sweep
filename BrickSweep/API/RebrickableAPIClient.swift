@@ -3,6 +3,7 @@ import Foundation
 protocol RebrickableAPIClientProtocol: Sendable {
     func fetchSet(setNum: String) async throws -> RebrickableSetDTO
     func fetchSetParts(setNum: String) async throws -> [RebrickableSetPartDTO]
+    func fetchSetPartsPage(urlString: String) async throws -> PaginatedResponse<RebrickableSetPartDTO>
     func fetchSetMinifigs(setNum: String) async throws -> [RebrickableMinifigDTO]
     func fetchColor(id: Int) async throws -> RebrickableColorDTO
     func addSetToCollection(userToken: String, setNum: String) async throws
@@ -17,7 +18,7 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
     init(
         session: URLSession = {
             let config = URLSessionConfiguration.default
-            config.timeoutIntervalForRequest = 15
+            config.timeoutIntervalForRequest = 60
             config.requestCachePolicy = .reloadIgnoringLocalCacheData
             config.urlCache = nil
             return URLSession(configuration: config)
@@ -31,6 +32,10 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
     func fetchSet(setNum: String) async throws -> RebrickableSetDTO {
         let url = "\(baseURL)sets/\(setNum)/"
         return try await fetch(urlString: url)
+    }
+
+    func fetchSetPartsPage(urlString: String) async throws -> PaginatedResponse<RebrickableSetPartDTO> {
+        try await fetch(urlString: urlString)
     }
 
     func fetchSetParts(setNum: String) async throws -> [RebrickableSetPartDTO] {

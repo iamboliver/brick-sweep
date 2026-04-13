@@ -89,6 +89,11 @@ struct SetsTabView: View {
             .animation(AppTheme.Animation.easeInOut, value: viewModel.isLoading)
             .onAppear {
                 hasAPIKey = APIKeyProvider.getAPIKey() != nil
+                let descriptor = FetchDescriptor<LegoSet>(predicate: #Predicate { $0.isImporting })
+                if let stuck = try? modelContext.fetch(descriptor), !stuck.isEmpty {
+                    stuck.forEach { modelContext.delete($0) }
+                    try? modelContext.save()
+                }
             }
             .alert("Error", isPresented: $viewModel.showError) {
                 Button("OK", role: .cancel) {}
