@@ -53,27 +53,36 @@ struct SetImportService: Sendable {
         async let minifigsFetch = apiClient.fetchSetMinifigs(setNum: setNum)
 
         do {
+            // Keyed by "partNum-colorId" to deduplicate across pages/sub-inventories
+            var seen: [String: LegoPartInstance] = [:]
+
             var nextURL: String? =
                 "\(rebrickableBase)sets/\(setNum)/parts/?page_size=500&inc_color_details=1&inc_part_details=1&inc_minifig_parts=1"
 
             while let url = nextURL {
                 let page = try await apiClient.fetchSetPartsPage(urlString: url)
                 for partDTO in page.results where !partDTO.isSpare {
-                    let part = LegoPartInstance(
-                        partNum: partDTO.part.partNum,
-                        colorId: partDTO.color.id,
-                        colorName: partDTO.color.name,
-                        colorRgb: partDTO.color.rgb,
-                        name: partDTO.part.name,
-                        imageUrl: partDTO.part.partImgUrl,
-                        requiredQty: partDTO.quantity,
-                        isSpare: false,
-                        elementId: partDTO.elementId,
-                        brickLinkPartNum: partDTO.part.externalIds?.brickLink?.first,
-                        brickLinkColorId: partDTO.color.externalIds?.brickLink?.extIds?.first
-                    )
-                    part.set = legoSet
-                    modelContext.insert(part)
+                    let key = "\(partDTO.part.partNum)-\(partDTO.color.id)"
+                    if let existing = seen[key] {
+                        existing.requiredQty += partDTO.quantity
+                    } else {
+                        let part = LegoPartInstance(
+                            partNum: partDTO.part.partNum,
+                            colorId: partDTO.color.id,
+                            colorName: partDTO.color.name,
+                            colorRgb: partDTO.color.rgb,
+                            name: partDTO.part.name,
+                            imageUrl: partDTO.part.partImgUrl,
+                            requiredQty: partDTO.quantity,
+                            isSpare: false,
+                            elementId: partDTO.elementId,
+                            brickLinkPartNum: partDTO.part.externalIds?.brickLink?.first,
+                            brickLinkColorId: partDTO.color.externalIds?.brickLink?.extIds?.first
+                        )
+                        part.set = legoSet
+                        modelContext.insert(part)
+                        seen[key] = part
+                    }
                 }
                 try modelContext.save()
                 nextURL = page.next
@@ -81,18 +90,24 @@ struct SetImportService: Sendable {
 
             let minifigsDTO = try await minifigsFetch
             for minifigDTO in minifigsDTO {
-                let minifig = LegoPartInstance(
-                    partNum: minifigDTO.setNum,
-                    colorId: LegoColorSortOrder.minifigColorId,
-                    colorName: "Minifigure",
-                    colorRgb: "FEC400",
-                    name: minifigDTO.setName,
-                    imageUrl: minifigDTO.setImgUrl,
-                    requiredQty: minifigDTO.quantity,
-                    isSpare: false
-                )
-                minifig.set = legoSet
-                modelContext.insert(minifig)
+                let key = "\(minifigDTO.setNum)-\(LegoColorSortOrder.minifigColorId)"
+                if let existing = seen[key] {
+                    existing.requiredQty += minifigDTO.quantity
+                } else {
+                    let minifig = LegoPartInstance(
+                        partNum: minifigDTO.setNum,
+                        colorId: LegoColorSortOrder.minifigColorId,
+                        colorName: "Minifigure",
+                        colorRgb: "FEC400",
+                        name: minifigDTO.setName,
+                        imageUrl: minifigDTO.setImgUrl,
+                        requiredQty: minifigDTO.quantity,
+                        isSpare: false
+                    )
+                    minifig.set = legoSet
+                    modelContext.insert(minifig)
+                    seen[key] = minifig
+                }
             }
             try modelContext.save()
 
