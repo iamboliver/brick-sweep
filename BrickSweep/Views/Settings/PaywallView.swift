@@ -120,8 +120,6 @@ struct PaywallView: View {
                         .padding(.bottom, AppTheme.Spacing.xl)
                 }
             }
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(dismissLabel) { dismiss() }
@@ -134,13 +132,6 @@ struct PaywallView: View {
     }
 
     // MARK: - Context-specific copy
-
-    private var title: String {
-        switch context {
-        case .setLimit: "You've almost outgrown free BrickSweep"
-        case .proFeature: "Unlock BrickSweep Pro"
-        }
-    }
 
     private var subtitle: String {
         switch context {
