@@ -20,7 +20,7 @@ struct AddSetView: View {
                 Text("Add Set")
                     .font(AppTheme.Typography.headline)
 
-                TextField("Set number (e.g. 75192)", text: $viewModel.setNumInput)
+                TextField("Set number (e.g. 75419)", text: $viewModel.setNumInput)
                     .textFieldStyle(.roundedBorder)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
