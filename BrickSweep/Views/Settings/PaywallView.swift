@@ -48,12 +48,6 @@ struct PaywallView: View {
                             description: "Export missing parts as BrickLink XML or CSV to order with ease."
                         )
                         PaywallFeatureRow(
-                            icon: "magnifyingglass",
-                            iconColor: .orange,
-                            title: "Find Parts in Your Collection",
-                            description: "See instantly which of your other sets have the piece you're missing."
-                        )
-                        PaywallFeatureRow(
                             icon: "heart.fill",
                             iconColor: .red,
                             title: "Support a Fellow AFOL",

@@ -121,7 +121,7 @@ struct SettingsTabView: View {
                     if storeManager.isPro {
                         Text("You have BrickSweep Pro. Thank you for your support!")
                     } else {
-                        Text("Unlock unlimited sets, BrickLink export, and Find in Collection. One-time purchase — no subscription, ever.")
+                        Text("Unlock unlimited sets and BrickLink export. One-time purchase — no subscription, ever.")
                     }
                 }
 
