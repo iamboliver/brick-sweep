@@ -9,4 +9,9 @@ enum AppConstants {
     enum UserDefaultsKeys {
         static let syncSetsToRebrickable = "syncSetsToRebrickable"
     }
+
+    enum IAP {
+        static let proProductID = "com.oliverbarwell.BrickCheck.pro"
+        static let freeTierSetLimit = 5
+    }
 }

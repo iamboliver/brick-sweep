@@ -2,8 +2,11 @@ import SwiftUI
 
 struct AddSetView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(StoreManager.self) private var storeManager
     @Bindable var viewModel: SetListViewModel
+    let setCount: Int
     @State private var showSheet = false
+    @State private var showPaywall = false
 
     var body: some View {
         Button {
@@ -17,16 +20,16 @@ struct AddSetView: View {
                 Text("Add Set")
                     .font(AppTheme.Typography.headline)
 
-                TextField("Set number (e.g. 75192)", text: $viewModel.setNumInput)
+                TextField("Set number (e.g. 60272)", text: $viewModel.setNumInput)
                     .textFieldStyle(.roundedBorder)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                     .onSubmit {
-                        loadSet()
+                        loadSetOrShowPaywall()
                     }
 
                 Button {
-                    loadSet()
+                    loadSetOrShowPaywall()
                 } label: {
                     Text("Load Set")
                         .fontWeight(.semibold)
@@ -45,12 +48,20 @@ struct AddSetView: View {
             .presentationDetents([.height(220)])
             .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(context: .setLimit)
+        }
     }
 
-    private func loadSet() {
-        showSheet = false
-        Task {
-            await viewModel.loadSet(modelContext: modelContext)
+    private func loadSetOrShowPaywall() {
+        if setCount >= AppConstants.IAP.freeTierSetLimit && !storeManager.isPro {
+            showSheet = false
+            showPaywall = true
+        } else {
+            showSheet = false
+            Task {
+                await viewModel.loadSet(modelContext: modelContext)
+            }
         }
     }
 }

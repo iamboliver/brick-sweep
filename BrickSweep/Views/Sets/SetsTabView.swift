@@ -11,6 +11,7 @@ struct SetsTabView: View {
     )
     @Environment(AppNavigator.self) private var navigator
     @State private var hasAPIKey = APIKeyProvider.getAPIKey() != nil
+    @State private var didCleanUpStuckImports = false
 
     private var totalMissingCount: Int {
         sets.reduce(0) { sum, set in
@@ -77,7 +78,7 @@ struct SetsTabView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    AddSetView(viewModel: viewModel)
+                    AddSetView(viewModel: viewModel, setCount: sets.count)
                 }
             }
             .overlay {
@@ -89,6 +90,14 @@ struct SetsTabView: View {
             .animation(AppTheme.Animation.easeInOut, value: viewModel.isLoading)
             .onAppear {
                 hasAPIKey = APIKeyProvider.getAPIKey() != nil
+                if !didCleanUpStuckImports {
+                    didCleanUpStuckImports = true
+                    let descriptor = FetchDescriptor<LegoSet>(predicate: #Predicate { $0.isImporting })
+                    if let stuck = try? modelContext.fetch(descriptor), !stuck.isEmpty {
+                        stuck.forEach { modelContext.delete($0) }
+                        try? modelContext.save()
+                    }
+                }
             }
             .alert("Error", isPresented: $viewModel.showError) {
                 Button("OK", role: .cancel) {}

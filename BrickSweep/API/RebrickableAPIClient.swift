@@ -3,6 +3,7 @@ import Foundation
 protocol RebrickableAPIClientProtocol: Sendable {
     func fetchSet(setNum: String) async throws -> RebrickableSetDTO
     func fetchSetParts(setNum: String) async throws -> [RebrickableSetPartDTO]
+    func fetchSetPartsPage(urlString: String) async throws -> PaginatedResponse<RebrickableSetPartDTO>
     func fetchSetMinifigs(setNum: String) async throws -> [RebrickableMinifigDTO]
     func fetchColor(id: Int) async throws -> RebrickableColorDTO
     func addSetToCollection(userToken: String, setNum: String) async throws
@@ -11,13 +12,14 @@ protocol RebrickableAPIClientProtocol: Sendable {
 struct RebrickableAPIClient: RebrickableAPIClientProtocol {
     private let baseURL = "https://rebrickable.com/api/v3/lego/"
     private let maxPages = 100
+    private static let userAgent = "BrickSweep/1.0"
     private let session: URLSession
     private let apiKeyProvider: @Sendable () -> String?
 
     init(
         session: URLSession = {
             let config = URLSessionConfiguration.default
-            config.timeoutIntervalForRequest = 15
+            config.timeoutIntervalForRequest = 60
             config.requestCachePolicy = .reloadIgnoringLocalCacheData
             config.urlCache = nil
             return URLSession(configuration: config)
@@ -33,10 +35,14 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
         return try await fetch(urlString: url)
     }
 
+    func fetchSetPartsPage(urlString: String) async throws -> PaginatedResponse<RebrickableSetPartDTO> {
+        try await fetch(urlString: urlString)
+    }
+
     func fetchSetParts(setNum: String) async throws -> [RebrickableSetPartDTO] {
         var allParts: [RebrickableSetPartDTO] = []
         var urlString: String? =
-            "\(baseURL)sets/\(setNum)/parts/?page_size=1000&inc_color_details=1&inc_part_details=1&inc_minifig_parts=1"
+            "\(baseURL)sets/\(setNum)/parts/?page_size=500&inc_color_details=1&inc_part_details=1&inc_minifig_parts=1"
         var pageCount = 0
 
         while let currentURL = urlString, pageCount < maxPages {
@@ -83,6 +89,7 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
         request.httpMethod = "POST"
         request.setValue("key \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
         request.httpBody = "set_num=\(setNum)".data(using: .utf8)
 
         let data: Data
@@ -115,6 +122,7 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
         var request = URLRequest(url: url)
         request.setValue("key \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
 
         let data: Data
         let response: URLResponse

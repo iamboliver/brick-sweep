@@ -3,11 +3,13 @@ import SwiftUI
 struct SettingsTabView: View {
     private static let keychainKey = AppConstants.Keychain.apiKey
 
+    @Environment(StoreManager.self) private var storeManager
     @FocusState private var isFieldFocused: Bool
     @State private var apiKey: String = ""
     @State private var showSavedConfirmation = false
     @State private var isTestingKey = false
     @State private var testResult: TestResult?
+    @State private var showPaywall = false
 
     private enum TestResult {
         case success
@@ -85,6 +87,44 @@ struct SettingsTabView: View {
                     Text("Automatic syncing of your sets to your Rebrickable collection is coming in a future update.")
                 }
 
+                Section {
+                    if storeManager.isPro {
+                        HStack {
+                            Label("BrickSweep Pro", systemImage: "crown.fill")
+                                .foregroundStyle(AppTheme.legoYellow)
+                            Spacer()
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        }
+                    } else {
+                        Button {
+                            showPaywall = true
+                        } label: {
+                            Label("Upgrade to Pro", systemImage: "crown.fill")
+                        }
+                        .foregroundStyle(AppTheme.legoYellow)
+
+                        Text(storeManager.proProduct.map { "One-time purchase — \($0.displayPrice)" } ?? "One-time purchase — £2.99")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button {
+                        Task { await storeManager.restorePurchases() }
+                    } label: {
+                        Text("Restore Purchases")
+                    }
+                    .disabled(storeManager.isLoading)
+                } header: {
+                    Label("BrickSweep Pro", systemImage: "crown.fill")
+                } footer: {
+                    if storeManager.isPro {
+                        Text("You have BrickSweep Pro. Thank you for your support!")
+                    } else {
+                        Text("Unlock unlimited sets and BrickLink export. One-time purchase — no subscription, ever.")
+                    }
+                }
+
                 Section("Resources") {
                     Link(destination: URL(string: "https://rebrickable.com/api/")!) {
                         Label("Get a free Rebrickable API key", systemImage: "globe")
@@ -130,6 +170,9 @@ struct SettingsTabView: View {
                         isFieldFocused = false
                     }
                 }
+            }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView(context: .proFeature)
             }
             .alert("API Key Saved", isPresented: $showSavedConfirmation) {
                 Button("OK", role: .cancel) {}

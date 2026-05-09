@@ -50,7 +50,11 @@ struct SetRowView: View {
 
             Spacer()
 
-            if !legoSet.parts.isEmpty {
+            if legoSet.isImporting {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(AppTheme.legoYellow)
+            } else if !legoSet.parts.isEmpty {
                 CompletionRing(
                     completed: completedCount,
                     total: legoSet.parts.count,

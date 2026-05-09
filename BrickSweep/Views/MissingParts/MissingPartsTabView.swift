@@ -3,7 +3,9 @@ import SwiftUI
 
 struct MissingPartsTabView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(StoreManager.self) private var storeManager
     @State private var viewModel = MissingPartsViewModel()
+    @State private var showPaywall = false
 
     private var uniquePartCount: Int {
         viewModel.missingParts.count
@@ -73,8 +75,12 @@ struct MissingPartsTabView: View {
                             Divider()
 
                             Button("Export", systemImage: "square.and.arrow.up") {
-                                Task {
-                                    await viewModel.generateExport()
+                                if storeManager.isPro {
+                                    Task {
+                                        await viewModel.generateExport()
+                                    }
+                                } else {
+                                    showPaywall = true
                                 }
                             }
                         } label: {
@@ -88,6 +94,9 @@ struct MissingPartsTabView: View {
             }
             .sheet(isPresented: $viewModel.showExportOptions) {
                 ExportOptionsView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView(context: .proFeature)
             }
             .refreshable {
                 viewModel.refresh(modelContext: modelContext)
