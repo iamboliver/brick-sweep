@@ -110,7 +110,35 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
         }
     }
 
+    // Retries on network errors and 5xx responses with exponential backoff.
+    // Does not retry 4xx (client errors), decoding failures, or missing API key.
     private func fetch<T: Decodable>(urlString: String) async throws -> T {
+        let maxAttempts = 3
+        var delayNs: UInt64 = 2_000_000_000  // 2s, doubles each retry
+        var lastError: Error = APIError.networkError(underlying: URLError(.timedOut))
+
+        for attempt in 0..<maxAttempts {
+            do {
+                return try await fetchOnce(urlString: urlString)
+            } catch let error as APIError {
+                switch error {
+                case .networkError:
+                    lastError = error
+                case .httpError(let code, _) where (500...599).contains(code):
+                    lastError = error
+                default:
+                    throw error
+                }
+            }
+            if attempt < maxAttempts - 1 {
+                try await Task.sleep(nanoseconds: delayNs)
+                delayNs *= 2
+            }
+        }
+        throw lastError
+    }
+
+    private func fetchOnce<T: Decodable>(urlString: String) async throws -> T {
         guard let apiKey = apiKeyProvider(), !apiKey.isEmpty else {
             throw APIError.missingAPIKey
         }
@@ -145,8 +173,7 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
         }
 
         do {
-            let decoder = JSONDecoder()
-            return try decoder.decode(T.self, from: data)
+            return try JSONDecoder().decode(T.self, from: data)
         } catch {
             throw APIError.decodingError(underlying: error)
         }

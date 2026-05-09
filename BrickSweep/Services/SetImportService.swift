@@ -114,8 +114,8 @@ struct SetImportService: Sendable {
             legoSet.isImporting = false
             try modelContext.save()
         } catch {
-            modelContext.delete(legoSet)
-            try? modelContext.save()
+            // Leave the set in place with isImporting = true so partial progress is preserved.
+            // The user can swipe to delete and retry.
             throw error
         }
     }

@@ -32,11 +32,11 @@ final class SetListViewModel {
                 try await importService.loadParts(into: set, setNum: set.setNum, modelContext: modelContext)
             }
         } catch {
-            if let partial = createdSet {
-                modelContext.delete(partial)
-                try? modelContext.save()
-            }
-            errorMessage = error.localizedDescription
+            // Partial set (if created) is kept with isImporting = true.
+            // User can swipe to delete it and try again.
+            errorMessage = createdSet != nil
+                ? "Import failed partway through — swipe to delete the set and try again."
+                : error.localizedDescription
             showError = true
             isLoading = false
         }
