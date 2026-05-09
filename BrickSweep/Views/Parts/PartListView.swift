@@ -2,8 +2,15 @@ import SwiftUI
 
 struct PartListView: View {
     @Bindable var legoSet: LegoSet
+    let retryImport: (() async -> Void)?
     @State private var viewModel = PartListViewModel()
     @State private var showResetConfirmation = false
+    @State private var isRetrying = false
+
+    init(legoSet: LegoSet, retryImport: (() async -> Void)? = nil) {
+        _legoSet = Bindable(legoSet)
+        self.retryImport = retryImport
+    }
 
     private var missingCount: Int {
         legoSet.parts.filter { $0.missingQty > 0 }.count
@@ -64,6 +71,25 @@ struct PartListView: View {
 
             if filtered.isEmpty && !viewModel.searchText.trimmingCharacters(in: .whitespaces).isEmpty {
                 ContentUnavailableView.search(text: viewModel.searchText)
+            } else if filtered.isEmpty && legoSet.importFailed {
+                ContentUnavailableView {
+                    Label("Download Stopped", systemImage: "exclamationmark.circle")
+                } description: {
+                    Text("The download failed before any parts could be loaded.")
+                } actions: {
+                    Button {
+                        isRetrying = true
+                        Task {
+                            await retryImport?()
+                            isRetrying = false
+                        }
+                    } label: {
+                        Label(isRetrying ? "Retrying…" : "Retry Download", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(AppTheme.legoYellow)
+                    .disabled(isRetrying)
+                }
             } else if filtered.isEmpty && legoSet.isImporting {
                 ContentUnavailableView {
                     Label("Loading Parts", systemImage: "arrow.trianglehead.2.clockwise")
@@ -81,6 +107,40 @@ struct PartListView: View {
                     LazyVStack(spacing: AppTheme.Spacing.sm) {
                         ForEach(filtered) { part in
                             PartCardView(part: part)
+                        }
+
+                        if legoSet.importFailed {
+                            VStack(spacing: AppTheme.Spacing.sm) {
+                                Text("Download stopped — some parts may be missing.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                Button {
+                                    isRetrying = true
+                                    Task {
+                                        await retryImport?()
+                                        isRetrying = false
+                                    }
+                                } label: {
+                                    Label(isRetrying ? "Retrying…" : "Retry Download", systemImage: "arrow.clockwise")
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(AppTheme.legoYellow)
+                                .disabled(isRetrying)
+                            }
+                            .padding(.top, AppTheme.Spacing.md)
+                            .padding(.bottom)
+                        } else if legoSet.isImporting {
+                            HStack(spacing: AppTheme.Spacing.sm) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .tint(AppTheme.legoYellow)
+                                Text("Loading more parts…")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.top, AppTheme.Spacing.md)
+                            .padding(.bottom)
                         }
                     }
                     .padding(.horizontal)

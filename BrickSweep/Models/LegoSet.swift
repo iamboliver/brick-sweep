@@ -10,6 +10,7 @@ final class LegoSet {
     var imageUrl: String?
     var dateAdded: Date
     var isImporting: Bool = false
+    var importFailed: Bool = false
 
     @Relationship(deleteRule: .cascade, inverse: \LegoPartInstance.set)
     var parts: [LegoPartInstance] = []
@@ -21,7 +22,8 @@ final class LegoSet {
         numParts: Int,
         imageUrl: String?,
         dateAdded: Date = .now,
-        isImporting: Bool = false
+        isImporting: Bool = false,
+        importFailed: Bool = false
     ) {
         self.setNum = setNum
         self.name = name
@@ -30,5 +32,6 @@ final class LegoSet {
         self.imageUrl = imageUrl
         self.dateAdded = dateAdded
         self.isImporting = isImporting
+        self.importFailed = importFailed
     }
 }

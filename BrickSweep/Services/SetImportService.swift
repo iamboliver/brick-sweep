@@ -112,12 +112,24 @@ struct SetImportService: Sendable {
             try modelContext.save()
 
             legoSet.isImporting = false
+            legoSet.importFailed = false
             try modelContext.save()
         } catch {
-            // Leave the set in place with isImporting = true so partial progress is preserved.
-            // The user can swipe to delete and retry.
+            legoSet.importFailed = true
+            try? modelContext.save()
             throw error
         }
+    }
+
+    // MARK: - Retry: clear existing parts and re-import from scratch
+
+    @MainActor
+    func retryLoadParts(into legoSet: LegoSet, modelContext: ModelContext) async throws {
+        legoSet.parts.forEach { modelContext.delete($0) }
+        legoSet.importFailed = false
+        legoSet.isImporting = true
+        try modelContext.save()
+        try await loadParts(into: legoSet, setNum: legoSet.setNum, modelContext: modelContext)
     }
 
     // MARK: - Combined (kept for test compatibility)

@@ -42,6 +42,14 @@ final class SetListViewModel {
         }
     }
 
+    func retryImport(legoSet: LegoSet, modelContext: ModelContext) async {
+        do {
+            try await importService.retryLoadParts(into: legoSet, modelContext: modelContext)
+        } catch {
+            // importFailed = true is already set by loadParts on failure
+        }
+    }
+
     func deleteSet(_ legoSet: LegoSet, modelContext: ModelContext) {
         modelContext.delete(legoSet)
         do {

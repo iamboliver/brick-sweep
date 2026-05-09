@@ -50,7 +50,11 @@ struct SetRowView: View {
 
             Spacer()
 
-            if legoSet.isImporting {
+            if legoSet.importFailed {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .foregroundStyle(.red)
+                    .font(.title2)
+            } else if legoSet.isImporting {
                 ProgressView()
                     .controlSize(.small)
                     .tint(AppTheme.legoYellow)

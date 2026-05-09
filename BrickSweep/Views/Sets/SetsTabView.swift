@@ -74,7 +74,9 @@ struct SetsTabView: View {
             .navigationTitle("My Sets")
             .navigationBarTitleDisplayMode(.large)
             .navigationDestination(for: LegoSet.self) { legoSet in
-                PartListView(legoSet: legoSet)
+                PartListView(legoSet: legoSet) {
+                    await viewModel.retryImport(legoSet: legoSet, modelContext: modelContext)
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -92,9 +94,12 @@ struct SetsTabView: View {
                 hasAPIKey = APIKeyProvider.getAPIKey() != nil
                 if !didCleanUpStuckImports {
                     didCleanUpStuckImports = true
-                    let descriptor = FetchDescriptor<LegoSet>(predicate: #Predicate { $0.isImporting })
+                    // Mark any mid-import sets (crashed before finishing) as failed so the user can retry
+                    let descriptor = FetchDescriptor<LegoSet>(
+                        predicate: #Predicate { $0.isImporting && !$0.importFailed }
+                    )
                     if let stuck = try? modelContext.fetch(descriptor), !stuck.isEmpty {
-                        stuck.forEach { modelContext.delete($0) }
+                        stuck.forEach { $0.importFailed = true }
                         try? modelContext.save()
                     }
                 }
