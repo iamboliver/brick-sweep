@@ -12,12 +12,21 @@ struct PartListView: View {
         self.retryImport = retryImport
     }
 
-    private var missingCount: Int {
-        legoSet.parts.filter { $0.missingQty > 0 }.count
+    private var totalQty: Int {
+        legoSet.parts.reduce(0) { $0 + $1.requiredQty }
     }
 
-    private var accountedCount: Int {
-        legoSet.parts.count - missingCount
+    private var missingQty: Int {
+        legoSet.parts.reduce(0) { $0 + $1.missingQty }
+    }
+
+    private var accountedQty: Int {
+        totalQty - missingQty
+    }
+
+    // Used for filter bar tabs — unique part types, not quantities
+    private var missingTypeCount: Int {
+        legoSet.parts.filter { $0.missingQty > 0 }.count
     }
 
     var body: some View {
@@ -28,21 +37,21 @@ struct PartListView: View {
             if !legoSet.isImporting || !legoSet.parts.isEmpty {
                 HStack(spacing: AppTheme.Spacing.lg) {
                     CompletionRing(
-                        completed: legoSet.isImporting ? legoSet.parts.count : accountedCount,
-                        total: legoSet.isImporting ? legoSet.numParts : legoSet.parts.count,
+                        completed: legoSet.isImporting ? totalQty : accountedQty,
+                        total: legoSet.numParts,
                         size: 52
                     )
 
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
                         if legoSet.isImporting {
-                            Text("\(legoSet.parts.count) of \(legoSet.numParts) parts loaded")
+                            Text("\(totalQty) of \(legoSet.numParts) parts loaded")
                                 .font(AppTheme.Typography.headline)
                                 .foregroundStyle(.secondary)
-                        } else if missingCount > 0 {
-                            Text("\(missingCount) of \(legoSet.parts.count) parts missing")
+                        } else if missingQty > 0 {
+                            Text("\(missingQty) of \(legoSet.numParts) parts missing")
                                 .font(AppTheme.Typography.headline)
                         } else {
-                            Text("All \(legoSet.parts.count) parts accounted for")
+                            Text("All \(legoSet.numParts) parts accounted for")
                                 .font(AppTheme.Typography.headline)
                                 .foregroundStyle(AppTheme.completedGreen)
                         }
@@ -62,8 +71,8 @@ struct PartListView: View {
                 PartFilterBar(
                     filter: $viewModel.filter,
                     allCount: legoSet.parts.count,
-                    missingCount: missingCount,
-                    accountedCount: accountedCount
+                    missingCount: missingTypeCount,
+                    accountedCount: legoSet.parts.count - missingTypeCount
                 )
                 .padding(.horizontal)
                 .padding(.bottom, AppTheme.Spacing.sm)
