@@ -57,7 +57,7 @@ struct PaywallView: View {
                     .padding(.horizontal, AppTheme.Spacing.xl)
 
                     // MARK: Price line
-                    Text("One-time purchase · \(storeManager.proProduct?.displayPrice ?? "£2.99") · No subscription, ever.")
+                    Text(priceLine)
                         .font(AppTheme.Typography.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -152,6 +152,13 @@ struct PaywallView: View {
             return "Unlock BrickSweep Pro — \(product.displayPrice)"
         }
         return "Unlock BrickSweep Pro"
+    }
+
+    private var priceLine: String {
+        if let product = storeManager.proProduct {
+            return "One-time purchase · \(product.displayPrice) · No subscription, ever."
+        }
+        return "One-time purchase · No subscription, ever."
     }
 }
 

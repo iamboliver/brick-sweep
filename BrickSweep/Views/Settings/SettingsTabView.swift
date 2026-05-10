@@ -104,7 +104,7 @@ struct SettingsTabView: View {
                         }
                         .foregroundStyle(AppTheme.legoYellow)
 
-                        Text(storeManager.proProduct.map { "One-time purchase — \($0.displayPrice)" } ?? "One-time purchase — £2.99")
+                        Text(storeManager.proProduct.map { "One-time purchase — \($0.displayPrice)" } ?? "One-time purchase")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
