@@ -4,6 +4,7 @@ enum APIError: LocalizedError {
     case missingAPIKey
     case invalidURL(String)
     case httpError(statusCode: Int, body: String?)
+    case rateLimited(retryAfter: TimeInterval?)
     case decodingError(underlying: Error)
     case networkError(underlying: Error)
     case setNotFound(String)
@@ -17,6 +18,12 @@ enum APIError: LocalizedError {
             "Invalid URL: \(url)"
         case .httpError(let statusCode, _):
             "Server returned error \(statusCode)."
+        case .rateLimited(let retryAfter):
+            if let retryAfter {
+                "Rebrickable is rate limiting requests. Please try again in \(Int(retryAfter)) seconds."
+            } else {
+                "Rebrickable is rate limiting requests. Please try again shortly."
+            }
         case .decodingError(let underlying):
             "Failed to parse response: \(underlying.localizedDescription)"
         case .networkError(let underlying):

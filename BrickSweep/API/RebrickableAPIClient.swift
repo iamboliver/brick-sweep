@@ -110,20 +110,27 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
         }
     }
 
-    // Retries on network errors and 5xx responses with exponential backoff.
-    // Does not retry 4xx (client errors), decoding failures, or missing API key.
+    // Retries on network errors, 429s, and 5xx responses with exponential backoff.
+    // Does not retry other 4xx client errors, decoding failures, or missing API key.
     private func fetch<T: Decodable>(urlString: String) async throws -> T {
         let maxAttempts = 3
         var delayNs: UInt64 = 2_000_000_000  // 2s, doubles each retry
         var lastError: Error = APIError.networkError(underlying: URLError(.timedOut))
+        var retryAfterNs: UInt64?
 
         for attempt in 0..<maxAttempts {
+            retryAfterNs = nil
             do {
                 return try await fetchOnce(urlString: urlString)
             } catch let error as APIError {
                 switch error {
                 case .networkError:
                     lastError = error
+                case .rateLimited(let retryAfter):
+                    lastError = error
+                    if let retryAfter {
+                        retryAfterNs = UInt64(retryAfter * 1_000_000_000)
+                    }
                 case .httpError(let code, _) where (500...599).contains(code):
                     lastError = error
                 default:
@@ -131,7 +138,7 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
                 }
             }
             if attempt < maxAttempts - 1 {
-                try await Task.sleep(nanoseconds: delayNs)
+                try await Task.sleep(nanoseconds: retryAfterNs ?? delayNs)
                 delayNs *= 2
             }
         }
@@ -168,6 +175,9 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
             if httpResponse.statusCode == 404 {
                 throw APIError.setNotFound(urlString)
             }
+            if httpResponse.statusCode == 429 {
+                throw APIError.rateLimited(retryAfter: retryAfter(from: httpResponse))
+            }
             let body = String(data: data, encoding: .utf8)
             throw APIError.httpError(statusCode: httpResponse.statusCode, body: body)
         }
@@ -178,4 +188,25 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
             throw APIError.decodingError(underlying: error)
         }
     }
+
+    private func retryAfter(from response: HTTPURLResponse) -> TimeInterval? {
+        guard let value = response.value(forHTTPHeaderField: "Retry-After") else {
+            return nil
+        }
+        if let seconds = TimeInterval(value) {
+            return seconds
+        }
+        if let date = Self.retryAfterDateFormatter.date(from: value) {
+            return max(0, date.timeIntervalSinceNow)
+        }
+        return nil
+    }
+
+    private static let retryAfterDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "EEE',' dd MMM yyyy HH':'mm':'ss z"
+        return formatter
+    }()
 }

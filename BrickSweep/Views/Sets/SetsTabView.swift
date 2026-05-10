@@ -27,7 +27,7 @@ struct SetsTabView: View {
                         ContentUnavailableView {
                             Label("API Key Required", systemImage: "key.fill")
                         } description: {
-                            Text("BrickSweep looks up set part lists using Rebrickable's free community database — over 1 million LEGO parts catalogued by fans.\n\nAdd your free API key in the **Settings** tab to get started.")
+                            Text("BrickSweep uses your free Rebrickable API key to download official set inventories. Your key is stored only in this device's Keychain and is sent directly to rebrickable.com.\n\nAdd your key in **Settings** to get started.")
                         } actions: {
                             Button("Open Settings") {
                                 navigator.selectedTab = .settings

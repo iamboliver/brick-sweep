@@ -3,6 +3,7 @@ import SwiftUI
 
 enum PaywallContext {
     case setLimit
+    case export
     case proFeature
 }
 
@@ -144,6 +145,7 @@ struct PaywallView: View {
     private var subtitle: String {
         switch context {
         case .setLimit: "Track your whole LEGO universe with BrickSweep Pro."
+        case .export: "Export missing parts to BrickLink with BrickSweep Pro."
         case .proFeature: "You're using BrickSweep like a true LEGO collector."
         }
     }
@@ -151,6 +153,7 @@ struct PaywallView: View {
     private var dismissLabel: String {
         switch context {
         case .setLimit: "Keep \(AppConstants.IAP.freeTierSetLimit)-set limit"
+        case .export: "Not now"
         case .proFeature: "Not now"
         }
     }

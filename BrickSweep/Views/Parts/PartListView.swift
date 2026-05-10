@@ -82,9 +82,9 @@ struct PartListView: View {
                 ContentUnavailableView.search(text: viewModel.searchText)
             } else if filtered.isEmpty && legoSet.importFailed {
                 ContentUnavailableView {
-                    Label("Download Stopped", systemImage: "exclamationmark.circle")
+                    Label("Import Paused", systemImage: "exclamationmark.circle")
                 } description: {
-                    Text("The download failed before any parts could be loaded.")
+                    Text("Rebrickable was temporarily unavailable before any parts could be loaded. Your set was saved, and you can retry now.")
                 } actions: {
                     Button {
                         isRetrying = true
@@ -120,7 +120,7 @@ struct PartListView: View {
 
                         if legoSet.importFailed {
                             VStack(spacing: AppTheme.Spacing.sm) {
-                                Text("Download stopped — some parts may be missing.")
+                                Text("Import paused — Rebrickable was temporarily unavailable. Your progress was saved.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .multilineTextAlignment(.center)

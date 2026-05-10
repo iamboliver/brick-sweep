@@ -3,7 +3,7 @@ import SwiftData
 
 struct SetImportService: Sendable {
     private let apiClient: RebrickableAPIClientProtocol
-    private let rebrickableBase = "https://rebrickable.com/api/v3/lego/"
+    private static let rebrickableBase = "https://rebrickable.com/api/v3/lego/"
 
     init(apiClient: RebrickableAPIClientProtocol) {
         self.apiClient = apiClient
@@ -15,6 +15,10 @@ struct SetImportService: Sendable {
             return trimmed
         }
         return "\(trimmed)-1"
+    }
+
+    static func partsPageURL(setNum: String) -> String {
+        "\(rebrickableBase)sets/\(setNum)/parts/?page_size=500&inc_color_details=1&inc_part_details=1&inc_minifig_parts=1"
     }
 
     // MARK: - Phase 1: create the set record and return immediately
@@ -56,8 +60,7 @@ struct SetImportService: Sendable {
             // Keyed by "partNum-colorId" to deduplicate across pages/sub-inventories
             var seen: [String: LegoPartInstance] = [:]
 
-            var nextURL: String? =
-                "\(rebrickableBase)sets/\(setNum)/parts/?page_size=500&inc_color_details=1&inc_part_details=1&inc_minifig_parts=1"
+            var nextURL: String? = Self.partsPageURL(setNum: setNum)
 
             while let url = nextURL {
                 let page = try await apiClient.fetchSetPartsPage(urlString: url)

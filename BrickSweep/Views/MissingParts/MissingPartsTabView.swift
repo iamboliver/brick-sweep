@@ -96,7 +96,7 @@ struct MissingPartsTabView: View {
                 ExportOptionsView(viewModel: viewModel)
             }
             .sheet(isPresented: $showPaywall) {
-                PaywallView(context: .proFeature)
+                PaywallView(context: .export)
             }
             .refreshable {
                 viewModel.refresh(modelContext: modelContext)

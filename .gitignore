@@ -25,4 +25,5 @@ Packages/
 Package.pins
 Package.resolved
 .claude/
+.agents/
 BrickSweep.storekit

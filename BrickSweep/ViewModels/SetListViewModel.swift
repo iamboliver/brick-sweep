@@ -35,7 +35,7 @@ final class SetListViewModel {
             // Partial set (if created) is kept with isImporting = true.
             // User can swipe to delete it and try again.
             errorMessage = createdSet != nil
-                ? "Import failed partway through — swipe to delete the set and try again."
+                ? "Rebrickable was temporarily unavailable. Your progress was saved — open the set and tap Retry Download when you're ready."
                 : error.localizedDescription
             showError = true
             isLoading = false
