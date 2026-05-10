@@ -115,6 +115,16 @@ struct SettingsTabView: View {
                         Text("Restore Purchases")
                     }
                     .disabled(storeManager.isLoading)
+
+                    if let error = storeManager.purchaseError {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    } else if let message = storeManager.purchaseMessage {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 } header: {
                     Label("BrickSweep Pro", systemImage: "crown.fill")
                 } footer: {
@@ -135,7 +145,7 @@ struct SettingsTabView: View {
                 }
 
                 Section {
-                    Label("Your API key and user token are stored securely in your device's Keychain and are only sent directly to rebrickable.com. This app has no server — your data never leaves your device.", systemImage: "lock.shield")
+                    Label("Your API key is stored securely in your device's Keychain and is only sent directly to rebrickable.com. This app has no server — your data never leaves your device.", systemImage: "lock.shield")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     Link(destination: URL(string: "https://github.com/iamboliver/brick-sweep/blob/main/PRIVACY.md")!) {

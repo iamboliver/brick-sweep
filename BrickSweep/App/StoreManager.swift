@@ -12,6 +12,7 @@ final class StoreManager {
     private(set) var proProduct: Product?
     private(set) var isLoading: Bool = false
     private(set) var purchaseError: String?
+    private(set) var purchaseMessage: String?
 
     // MARK: - Private state
 
@@ -47,6 +48,7 @@ final class StoreManager {
         }
         isLoading = true
         purchaseError = nil
+        purchaseMessage = nil
         defer { isLoading = false }
 
         do {
@@ -63,6 +65,7 @@ final class StoreManager {
             case .userCancelled:
                 return false
             case .pending:
+                purchaseMessage = "Purchase pending approval. You'll get access once Apple confirms it."
                 return false
             @unknown default:
                 return false
@@ -78,8 +81,12 @@ final class StoreManager {
     func restorePurchases() async {
         isLoading = true
         purchaseError = nil
+        purchaseMessage = nil
         defer { isLoading = false }
         await refreshPurchaseStatus()
+        purchaseMessage = isPro
+            ? "Purchases restored."
+            : "No previous BrickSweep Pro purchase was found for this Apple ID."
     }
 
     // MARK: - Transaction listener

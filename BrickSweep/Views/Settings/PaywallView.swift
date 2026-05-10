@@ -72,6 +72,14 @@ struct PaywallView: View {
                             .padding(.horizontal, AppTheme.Spacing.xl)
                     }
 
+                    if let message = storeManager.purchaseMessage {
+                        Text(message)
+                            .font(AppTheme.Typography.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, AppTheme.Spacing.xl)
+                    }
+
                     // MARK: Buttons
                     VStack(spacing: AppTheme.Spacing.md) {
                         Button {
