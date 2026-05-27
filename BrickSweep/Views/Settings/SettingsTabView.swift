@@ -4,12 +4,16 @@ struct SettingsTabView: View {
     private static let keychainKey = AppConstants.Keychain.apiKey
 
     @Environment(StoreManager.self) private var storeManager
+    @Environment(\.openURL) private var openURL
     @FocusState private var isFieldFocused: Bool
     @State private var apiKey: String = ""
     @State private var showSavedConfirmation = false
     @State private var isTestingKey = false
     @State private var testResult: TestResult?
     @State private var showPaywall = false
+    @State private var showAPIKeyHelp = false
+    @State private var showFeedbackFallback = false
+    @State private var lastVerifiedAPIKey: String?
 
     private enum TestResult {
         case success
@@ -25,11 +29,20 @@ struct SettingsTabView: View {
                         .textContentType(.password)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
+                        .onChange(of: apiKey) { _, newValue in
+                            guard let lastVerifiedAPIKey, newValue != lastVerifiedAPIKey else { return }
+                            UserDefaults.standard.set(false, forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
+                            testResult = nil
+                        }
 
                     Button("Save API Key") {
                         isFieldFocused = false
                         let success = KeychainHelper.save(key: Self.keychainKey, value: apiKey)
                         if success {
+                            if apiKey != lastVerifiedAPIKey {
+                                UserDefaults.standard.set(false, forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
+                                testResult = nil
+                            }
                             showSavedConfirmation = true
                         }
                     }
@@ -56,6 +69,12 @@ struct SettingsTabView: View {
                         }
                     }
                     .disabled(apiKey.trimmingCharacters(in: .whitespaces).isEmpty || isTestingKey)
+
+                    Button {
+                        showAPIKeyHelp = true
+                    } label: {
+                        Label("How to get an API key", systemImage: "questionmark.circle")
+                    }
                 } header: {
                     Label("API Key", systemImage: "key.fill")
                 } footer: {
@@ -144,6 +163,14 @@ struct SettingsTabView: View {
                     }
                 }
 
+                Section("Support") {
+                    Button {
+                        sendFeedback()
+                    } label: {
+                        Label("Send Feedback", systemImage: "envelope")
+                    }
+                }
+
                 Section {
                     Label("Your API key is stored securely in your device's Keychain and is only sent directly to rebrickable.com. This app has no server — your data never leaves your device.", systemImage: "lock.shield")
                         .font(.footnote)
@@ -173,26 +200,31 @@ struct SettingsTabView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") {
-                        isFieldFocused = false
-                    }
-                }
-            }
             .sheet(isPresented: $showPaywall) {
                 PaywallView(context: .proFeature)
             }
+            .sheet(isPresented: $showAPIKeyHelp) {
+                APIKeyHelpView()
+            }
             .alert("API Key Saved", isPresented: $showSavedConfirmation) {
                 Button("OK", role: .cancel) {}
+            }
+            .alert("Email Unavailable", isPresented: $showFeedbackFallback) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Please email \(AppConstants.Support.feedbackEmail) with your feedback.")
             }
             .onAppear {
                 if let stored = KeychainHelper.read(key: Self.keychainKey) {
                     apiKey = stored
                 }
+                if UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey) {
+                    lastVerifiedAPIKey = apiKey
+                    testResult = .success
+                }
             }
         }
+        .tint(.blue)
     }
 
     private func testAPIKey() {
@@ -205,12 +237,68 @@ struct SettingsTabView: View {
             do {
                 // Fetch color 0 (Black) as a lightweight connectivity test
                 _ = try await client.fetchColor(id: 0)
+                lastVerifiedAPIKey = apiKey
+                UserDefaults.standard.set(true, forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
                 testResult = .success
             } catch {
-                testResult = .failure(error.localizedDescription)
+                UserDefaults.standard.set(false, forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
+                testResult = .failure(apiKeyTestFailureMessage(for: error))
             }
             isTestingKey = false
         }
+    }
+
+    private func apiKeyTestFailureMessage(for error: Error) -> String {
+        if let apiError = error as? APIError {
+            switch apiError {
+            case .missingAPIKey:
+                return "Paste your Rebrickable API key, then tap Save API Key."
+            case .httpError(let statusCode, _) where statusCode == 401 || statusCode == 403:
+                return "That API key was not accepted. Copy it again from Rebrickable, paste it here, then tap Save API Key and Test Connection."
+            case .rateLimited:
+                return "Rebrickable is temporarily rate limiting requests. Wait a minute, then try again."
+            case .networkError:
+                return "BrickSweep could not reach Rebrickable. Check your connection, then try again."
+            default:
+                break
+            }
+        }
+        return "BrickSweep could not verify this API key. Check it was copied correctly, then try again."
+    }
+
+    private func sendFeedback() {
+        guard let url = feedbackURL else {
+            showFeedbackFallback = true
+            return
+        }
+
+        openURL(url) { accepted in
+            if !accepted {
+                showFeedbackFallback = true
+            }
+        }
+    }
+
+    private var feedbackURL: URL? {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
+        let body = """
+
+
+        ---
+        App version: \(version) (\(build))
+        Device: \(UIDevice.current.model)
+        iOS: \(UIDevice.current.systemVersion)
+        """
+
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = AppConstants.Support.feedbackEmail
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: "BrickSweep Feedback"),
+            URLQueryItem(name: "body", value: body),
+        ]
+        return components.url
     }
 }
 

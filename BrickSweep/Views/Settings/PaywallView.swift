@@ -64,6 +64,14 @@ struct PaywallView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, AppTheme.Spacing.xl)
 
+                    if case .failed(let message) = storeManager.productFetchState {
+                        Text(message)
+                            .font(AppTheme.Typography.caption)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, AppTheme.Spacing.xl)
+                    }
+
                     // MARK: Error
                     if let error = storeManager.purchaseError {
                         Text(error)
@@ -104,7 +112,16 @@ struct PaywallView: View {
                         .tint(AppTheme.legoYellow)
                         .foregroundStyle(Color(.label))
                         .controlSize(.large)
-                        .disabled(storeManager.isLoading || storeManager.proProduct == nil)
+                        .disabled(storeManager.isLoading || storeManager.productFetchState == .loading)
+
+                        if case .failed = storeManager.productFetchState {
+                            Button("Try Again") {
+                                Task { await storeManager.retryProductFetch() }
+                            }
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .disabled(storeManager.isLoading)
+                        }
 
                         Button {
                             Task {
@@ -159,10 +176,13 @@ struct PaywallView: View {
     }
 
     private var buyButtonLabel: String {
+        if storeManager.productFetchState == .loading {
+            return "Loading purchase options…"
+        }
         if let product = storeManager.proProduct {
             return "Unlock BrickSweep Pro — \(product.displayPrice)"
         }
-        return "Unlock BrickSweep Pro"
+        return "Unlock BrickSweep Pro (Try Again)"
     }
 
     private var priceLine: String {

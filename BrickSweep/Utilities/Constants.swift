@@ -8,6 +8,13 @@ enum AppConstants {
 
     enum UserDefaultsKeys {
         static let syncSetsToRebrickable = "syncSetsToRebrickable"
+        static let hasVerifiedAPIKey = "hasVerifiedAPIKey"
+    }
+
+    enum Support {
+        static let feedbackEmail = "hello@oliverbarwell.com"
+        static let rebrickableAPIURL = "https://rebrickable.com/api/"
+        static let exampleSetNumber = "60272"
     }
 
     enum IAP {

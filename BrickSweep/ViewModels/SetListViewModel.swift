@@ -16,16 +16,26 @@ final class SetListViewModel {
     }
 
     func loadSet(modelContext: ModelContext) async {
-        guard !setNumInput.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        let input = setNumInput.trimmingCharacters(in: .whitespaces)
+        guard !input.isEmpty else { return }
 
-        let input = setNumInput
+        await loadSet(setNum: input, modelContext: modelContext, clearInputOnSuccess: true)
+    }
+
+    func loadExampleSet(modelContext: ModelContext) async {
+        await loadSet(setNum: AppConstants.Support.exampleSetNumber, modelContext: modelContext)
+    }
+
+    private func loadSet(setNum: String, modelContext: ModelContext, clearInputOnSuccess: Bool = false) async {
         isLoading = true
         errorMessage = nil
         var createdSet: LegoSet?
 
         do {
-            createdSet = try await importService.createSet(setNum: input, modelContext: modelContext)
-            setNumInput = ""
+            createdSet = try await importService.createSet(setNum: setNum, modelContext: modelContext)
+            if clearInputOnSuccess {
+                setNumInput = ""
+            }
             isLoading = false  // overlay dismisses; set row appears with spinner
 
             if let set = createdSet {

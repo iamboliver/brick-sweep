@@ -1,4 +1,74 @@
-LEGO Missing Parts iOS App – Claude Plan
+# BrickSweep Plan
+
+## Post-launch roadmap
+
+The app is live. The next releases should focus on making the first-user path smoother, then adding organisation and cross-set value that makes Pro feel obvious.
+
+### 1.0.1 - Launch polish and trust
+
+Goal: reduce first-session friction and clean up release artefacts.
+
+- Remove temporary StoreKit `[IAP]` debug logging from `StoreManager`.
+- Add a simple feedback/contact entry point in Settings.
+- Improve API key onboarding with a clearer link/help path for getting a free Rebrickable key.
+- Add a small "try an example set" path using a quick, lightweight set number.
+- Add a review prompt only after the user has successfully imported a set and marked/tracked parts.
+- Keep this release small and low-risk.
+
+### 1.1 - Automatic theme grouping
+
+Goal: make collections easier to browse without requiring user setup.
+
+- Store Rebrickable theme metadata during set import if available.
+- Add a Sets view mode or filter for automatic theme groups such as Star Wars, Disney, Technic, City, etc.
+- Show group-level counts: number of sets, total parts, missing part count, and completion summary.
+- Keep automatic theme grouping free, because it improves the base collection experience.
+- Backfill theme data for existing sets when possible, or show "Unknown Theme" until refreshed.
+
+### 1.2 - Custom collections
+
+Goal: match how people organise real collections: shelves, tubs, children, resale piles, rebuild projects.
+
+- Add user-created collections such as "Euan's sets", "For resale", "Needs parts", or "Christmas rebuilds".
+- Allow a set to belong to one or more custom collections.
+- Add collection-level missing part totals and completion summaries.
+- Suggested monetisation split:
+  - Free: automatic theme groups and one custom collection.
+  - Pro: unlimited custom collections and collection-scoped export.
+
+### 1.3 - Find in Collection
+
+Goal: answer the high-value question: "I lost this part - do I already own it in another set?"
+
+- Add "Find in Collection" from a part row/detail.
+- Search owned sets for matching part number and colour.
+- Show matching sets, quantities, and whether those sets already have missing pieces.
+- Support search across all sets, then later collection-scoped search.
+- Keep this informational only at first. Do not build a transfer/reservation workflow yet.
+- Suggested monetisation split:
+  - Free: preview across free-tier sets.
+  - Pro: search across full collection and custom collections.
+
+### 1.4 - Bulk import
+
+Goal: help serious collectors load collections faster.
+
+- Add paste/import of multiple set numbers, one per line.
+- Process imports sequentially with progress, retry, and rate-limit friendly behaviour.
+- Clearly show which imports succeeded, failed, or need retry.
+- Make this a strong Pro workflow because it mainly helps larger collections.
+
+### Later candidates
+
+- Import from Rebrickable collection once the user token flow is stable enough.
+- Missing part lifecycle: missing -> exported -> ordered -> replaced.
+- Saved missing lists for projects or orders.
+- iPad support only if user demand appears.
+- Avoid cloud sync and value tracking until there is clearer demand.
+
+## Original implementation plan
+
+LEGO Missing Parts iOS App - Claude Plan
 1. Refined UX flow (what happens in the app)
 High‑level journey:
 

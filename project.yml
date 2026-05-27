@@ -35,6 +35,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.oliverbarwell.BrickCheck
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         DEVELOPMENT_TEAM: L7Y6TC9CUG
+        TARGETED_DEVICE_FAMILY: "1"
     capabilities:
       inAppPurchase: true
 
@@ -60,6 +61,7 @@ schemes:
         BrickSweepTests: [test]
     run:
       config: Debug
+      storeKitConfiguration: BrickSweep.storekit
     test:
       config: Debug
       targets:

@@ -6,6 +6,13 @@ import StoreKit
 @Observable
 final class StoreManager {
 
+    enum ProductFetchState: Equatable {
+        case idle
+        case loading
+        case loaded
+        case failed(String)
+    }
+
     // MARK: - Public state
 
     private(set) var isPro: Bool = false
@@ -13,6 +20,7 @@ final class StoreManager {
     private(set) var isLoading: Bool = false
     private(set) var purchaseError: String?
     private(set) var purchaseMessage: String?
+    private(set) var productFetchState: ProductFetchState = .idle
 
     // MARK: - Private state
 
@@ -23,7 +31,7 @@ final class StoreManager {
     init() {
         transactionListener = listenForTransactions()
         Task {
-            await fetchProduct()
+            await fetchProductWithRetry()
             await refreshPurchaseStatus()
         }
     }
@@ -31,12 +39,35 @@ final class StoreManager {
     // MARK: - Product fetch
 
     private func fetchProduct() async {
+        productFetchState = .loading
         do {
             let products = try await Product.products(for: [AppConstants.IAP.proProductID])
-            proProduct = products.first
+            if let product = products.first {
+                proProduct = product
+                productFetchState = .loaded
+            } else {
+                productFetchState = .failed("BrickSweep Pro is temporarily unavailable. Please try again.")
+            }
         } catch {
-            // Non-fatal: paywall shows a price placeholder
+            productFetchState = .failed("Unable to load purchase options. Check your connection and try again.")
         }
+    }
+
+    private func fetchProductWithRetry() async {
+        await fetchProduct()
+        guard proProduct == nil else { return }
+
+        for delay in [1_000_000_000, 2_000_000_000] {
+            try? await Task.sleep(nanoseconds: UInt64(delay))
+            await fetchProduct()
+            if proProduct != nil { return }
+        }
+    }
+
+    func retryProductFetch() async {
+        purchaseError = nil
+        purchaseMessage = nil
+        await fetchProductWithRetry()
     }
 
     // MARK: - Purchase
@@ -83,6 +114,11 @@ final class StoreManager {
         purchaseError = nil
         purchaseMessage = nil
         defer { isLoading = false }
+        do {
+            try await AppStore.sync()
+        } catch {
+            purchaseError = "Could not contact the App Store to restore purchases. Please try again."
+        }
         await refreshPurchaseStatus()
         purchaseMessage = isPro
             ? "Purchases restored."

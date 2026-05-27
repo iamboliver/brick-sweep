@@ -11,7 +11,9 @@ struct SetsTabView: View {
     )
     @Environment(AppNavigator.self) private var navigator
     @State private var hasAPIKey = APIKeyProvider.getAPIKey() != nil
+    @State private var hasVerifiedAPIKey = UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
     @State private var didCleanUpStuckImports = false
+    @State private var showAPIKeyHelp = false
 
     private var totalMissingCount: Int {
         sets.reduce(0) { sum, set in
@@ -23,17 +25,24 @@ struct SetsTabView: View {
         NavigationStack {
             Group {
                 if sets.isEmpty && !viewModel.isLoading {
-                    if !hasAPIKey {
+                    if !hasAPIKey || !hasVerifiedAPIKey {
                         ContentUnavailableView {
                             Label("API Key Required", systemImage: "key.fill")
                         } description: {
-                            Text("BrickSweep uses your free Rebrickable API key to download official set inventories. Your key is stored only in this device's Keychain and is sent directly to rebrickable.com.\n\nAdd your key in **Settings** to get started.")
+                            Text("BrickSweep uses your free Rebrickable API key to download set inventories. Add and test your key in **Settings** before importing a set.")
                         } actions: {
-                            Button("Open Settings") {
-                                navigator.selectedTab = .settings
+                            VStack {
+                                Button("Open Settings") {
+                                    navigator.selectedTab = .settings
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(AppTheme.legoYellow)
+
+                                Button("How to get an API key") {
+                                    showAPIKeyHelp = true
+                                }
+                                .buttonStyle(.bordered)
                             }
-                            .buttonStyle(.borderedProminent)
-                            .tint(AppTheme.legoYellow)
                         }
                         .tint(AppTheme.legoYellow)
                     } else {
@@ -41,6 +50,14 @@ struct SetsTabView: View {
                             Label("Add Your First Set", systemImage: "square.stack.3d.up.fill")
                         } description: {
                             Text("Search by set number above to import your LEGO set and start tracking missing pieces.")
+                        } actions: {
+                            Button("Try Example Set") {
+                                Task {
+                                    await viewModel.loadExampleSet(modelContext: modelContext)
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(AppTheme.legoYellow)
                         }
                         .tint(AppTheme.legoYellow)
                     }
@@ -92,6 +109,7 @@ struct SetsTabView: View {
             .animation(AppTheme.Animation.easeInOut, value: viewModel.isLoading)
             .onAppear {
                 hasAPIKey = APIKeyProvider.getAPIKey() != nil
+                hasVerifiedAPIKey = UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
                 if !didCleanUpStuckImports {
                     didCleanUpStuckImports = true
                     // Mark any mid-import sets (crashed before finishing) as failed so the user can retry
@@ -110,6 +128,9 @@ struct SetsTabView: View {
                 if let error = viewModel.errorMessage {
                     Text(error)
                 }
+            }
+            .sheet(isPresented: $showAPIKeyHelp) {
+                APIKeyHelpView()
             }
         }
     }
