@@ -24,8 +24,21 @@ struct AddSetView: View {
                     .textFieldStyle(.roundedBorder)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                    .keyboardType(.numberPad)
                     .onSubmit {
                         loadSetOrShowPaywall()
+                    }
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Done") {
+                                loadSetOrShowPaywall()
+                            }
+                            .disabled(
+                                viewModel.setNumInput.trimmingCharacters(in: .whitespaces).isEmpty
+                                    || viewModel.isLoading
+                            )
+                        }
                     }
 
                 Button {
