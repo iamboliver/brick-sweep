@@ -24,7 +24,7 @@ struct AddSetView: View {
                     .textFieldStyle(.roundedBorder)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
-                    .keyboardType(.numberPad)
+                    .keyboardType(.numbersAndPunctuation)
                     .onSubmit {
                         loadSetOrShowPaywall()
                     }
