@@ -6,8 +6,7 @@ struct CompletionRing: View {
     var size: CGFloat = 36
 
     private var fraction: Double {
-        guard total > 0 else { return 1.0 }
-        return Double(completed) / Double(total)
+        Completion.fraction(completed: completed, total: total)
     }
 
     private var ringColor: Color {

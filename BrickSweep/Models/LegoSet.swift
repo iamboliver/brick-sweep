@@ -34,4 +34,24 @@ final class LegoSet {
         self.isImporting = isImporting
         self.importFailed = importFailed
     }
+
+    /// Sum of required quantities across imported parts. This is the
+    /// authoritative denominator for quantity-based completion — it can
+    /// differ from `numParts` (API set metadata) once parts are actually
+    /// imported, so it must not be mixed with `numParts` in a single ratio.
+    var totalRequiredQty: Int {
+        parts.reduce(0) { $0 + $1.requiredQty }
+    }
+
+    var totalMissingQty: Int {
+        parts.reduce(0) { $0 + $1.missingQty }
+    }
+
+    var accountedQty: Int {
+        totalRequiredQty - totalMissingQty
+    }
+
+    var completionFraction: Double {
+        Completion.fraction(completed: accountedQty, total: totalRequiredQty)
+    }
 }
