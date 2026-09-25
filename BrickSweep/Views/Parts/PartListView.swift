@@ -40,10 +40,10 @@ struct PartListView: View {
                                 .font(AppTheme.Typography.headline)
                                 .foregroundStyle(.secondary)
                         } else if missingQty > 0 {
-                            Text("\(missingQty) of \(legoSet.numParts) parts missing")
+                            Text("\(missingQty) of \(totalQty) parts missing")
                                 .font(AppTheme.Typography.headline)
                         } else {
-                            Text("All \(legoSet.numParts) parts accounted for")
+                            Text("All \(totalQty) parts accounted for")
                                 .font(AppTheme.Typography.headline)
                                 .foregroundStyle(AppTheme.completedGreen)
                         }
