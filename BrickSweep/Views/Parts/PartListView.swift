@@ -12,17 +12,9 @@ struct PartListView: View {
         self.retryImport = retryImport
     }
 
-    private var totalQty: Int {
-        legoSet.parts.reduce(0) { $0 + $1.requiredQty }
-    }
-
-    private var missingQty: Int {
-        legoSet.parts.reduce(0) { $0 + $1.missingQty }
-    }
-
-    private var accountedQty: Int {
-        totalQty - missingQty
-    }
+    private var totalQty: Int { legoSet.totalRequiredQty }
+    private var missingQty: Int { legoSet.totalMissingQty }
+    private var accountedQty: Int { legoSet.accountedQty }
 
     // Used for filter bar tabs — unique part types, not quantities
     private var missingTypeCount: Int {
@@ -38,7 +30,7 @@ struct PartListView: View {
                 HStack(spacing: AppTheme.Spacing.lg) {
                     CompletionRing(
                         completed: legoSet.isImporting ? totalQty : accountedQty,
-                        total: legoSet.numParts,
+                        total: legoSet.isImporting ? legoSet.numParts : totalQty,
                         size: 52
                     )
 
