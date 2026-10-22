@@ -6,6 +6,8 @@ final class LegoSet {
     @Attribute(.unique) var setNum: String
     var name: String
     var year: Int
+    var themeId: Int?
+    var themeName: String?
     var numParts: Int
     var imageUrl: String?
     var dateAdded: Date
@@ -19,6 +21,8 @@ final class LegoSet {
         setNum: String,
         name: String,
         year: Int,
+        themeId: Int? = nil,
+        themeName: String? = nil,
         numParts: Int,
         imageUrl: String?,
         dateAdded: Date = .now,
@@ -28,6 +32,8 @@ final class LegoSet {
         self.setNum = setNum
         self.name = name
         self.year = year
+        self.themeId = themeId
+        self.themeName = themeName
         self.numParts = numParts
         self.imageUrl = imageUrl
         self.dateAdded = dateAdded

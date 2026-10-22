@@ -19,6 +19,8 @@ struct SetImportServiceTests {
         let set = try await harness.service.createSet(setNum: "60272", modelContext: harness.context)
 
         #expect(set.setNum == "60272-1")
+        #expect(set.themeId == 52)
+        #expect(set.themeName == "City")
         #expect(set.isImporting)
         #expect(!set.importFailed)
         #expect(set.parts.isEmpty)
@@ -140,6 +142,7 @@ struct SetImportServiceTests {
         setNum: "60272-1",
         name: "Elite Police Boat Transport",
         year: 2020,
+        themeId: 52,
         numParts: 166,
         setImgUrl: nil
     )
@@ -221,6 +224,13 @@ private struct MockRebrickableAPIClient: RebrickableAPIClientProtocol {
 
     func fetchSetMinifigs(setNum: String) async throws -> [RebrickableMinifigDTO] {
         minifigs
+    }
+
+    func fetchTheme(id: Int) async throws -> RebrickableThemeDTO {
+        if id == 52 {
+            return RebrickableThemeDTO(id: id, parentId: 1, name: "Police")
+        }
+        return RebrickableThemeDTO(id: id, parentId: nil, name: "City")
     }
 
     func fetchColor(id: Int) async throws -> RebrickableColorDTO {

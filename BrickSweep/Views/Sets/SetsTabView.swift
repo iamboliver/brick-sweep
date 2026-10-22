@@ -2,6 +2,13 @@ import SwiftData
 import SwiftUI
 
 struct SetsTabView: View {
+    private enum SetsViewMode: String, CaseIterable, Identifiable {
+        case all = "All"
+        case themes = "Themes"
+
+        var id: String { rawValue }
+    }
+
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \LegoSet.dateAdded, order: .reverse) private var sets: [LegoSet]
     @State private var viewModel = SetListViewModel(
@@ -13,11 +20,24 @@ struct SetsTabView: View {
     @State private var hasAPIKey = APIKeyProvider.getAPIKey() != nil
     @State private var hasVerifiedAPIKey = UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
     @State private var didCleanUpStuckImports = false
+    @State private var isRefreshingThemeMetadata = false
     @State private var showAPIKeyHelp = false
+    @State private var viewMode: SetsViewMode = .all
 
     private var totalMissingCount: Int {
         sets.reduce(0) { sum, set in
             sum + set.parts.filter { $0.missingQty > 0 }.count
+        }
+    }
+
+    private var themeGroups: [ThemeGroup] {
+        ThemeGroup.groups(from: sets)
+    }
+
+    private var hasSetsNeedingThemeMetadata: Bool {
+        sets.contains { set in
+            let themeName = set.themeName?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return set.themeId == nil || themeName?.isEmpty != false
         }
     }
 
@@ -64,6 +84,17 @@ struct SetsTabView: View {
                 } else {
                     List {
                         Section {
+                            Picker("View", selection: $viewMode) {
+                                ForEach(SetsViewMode.allCases) { mode in
+                                    Text(mode.rawValue).tag(mode)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                        }
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        .listRowBackground(Color.clear)
+
+                        Section {
                             SummaryHeaderView(stats: [
                                 StatCard(icon: "square.stack.3d.up.fill", value: sets.count, label: "Sets", iconColor: AppTheme.legoYellow),
                                 StatCard(icon: "exclamationmark.triangle.fill", value: totalMissingCount, label: "Missing", iconColor: AppTheme.legoRed),
@@ -73,14 +104,43 @@ struct SetsTabView: View {
                         }
 
                         Section {
-                            ForEach(sets) { legoSet in
-                                NavigationLink(value: legoSet) {
-                                    SetRowView(legoSet: legoSet)
+                            if viewMode == .all {
+                                ForEach(sets) { legoSet in
+                                    NavigationLink(value: legoSet) {
+                                        SetRowView(legoSet: legoSet)
+                                    }
                                 }
-                            }
-                            .onDelete { indexSet in
-                                for index in indexSet {
-                                    viewModel.deleteSet(sets[index], modelContext: modelContext)
+                                .onDelete { indexSet in
+                                    for index in indexSet {
+                                        viewModel.deleteSet(sets[index], modelContext: modelContext)
+                                    }
+                                }
+                            } else {
+                                if hasSetsNeedingThemeMetadata {
+                                    if isRefreshingThemeMetadata {
+                                        HStack {
+                                            ProgressView()
+                                                .controlSize(.small)
+                                            Text("Categorising sets...")
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    } else if hasAPIKey && hasVerifiedAPIKey {
+                                        Button {
+                                            refreshThemeMetadataIfNeeded()
+                                        } label: {
+                                            Label("Categorise Existing Sets", systemImage: "arrow.triangle.2.circlepath")
+                                        }
+                                    } else {
+                                        Text("Test your API key in Settings to categorise existing sets.")
+                                            .font(AppTheme.Typography.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+
+                                ForEach(themeGroups) { group in
+                                    NavigationLink(value: group) {
+                                        ThemeGroupRowView(group: group)
+                                    }
                                 }
                             }
                         }
@@ -94,6 +154,9 @@ struct SetsTabView: View {
                 PartListView(legoSet: legoSet) {
                     await viewModel.retryImport(legoSet: legoSet, modelContext: modelContext)
                 }
+            }
+            .navigationDestination(for: ThemeGroup.self) { group in
+                ThemeSetListView(group: group)
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -110,6 +173,9 @@ struct SetsTabView: View {
             .onAppear {
                 hasAPIKey = APIKeyProvider.getAPIKey() != nil
                 hasVerifiedAPIKey = UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
+                if viewMode == .themes {
+                    refreshThemeMetadataIfNeeded()
+                }
                 if !didCleanUpStuckImports {
                     didCleanUpStuckImports = true
                     // Mark any mid-import sets (crashed before finishing) as failed so the user can retry
@@ -132,6 +198,26 @@ struct SetsTabView: View {
             .sheet(isPresented: $showAPIKeyHelp) {
                 APIKeyHelpView()
             }
+            .onChange(of: viewMode) { _, newValue in
+                if newValue == .themes {
+                    refreshThemeMetadataIfNeeded()
+                }
+            }
+        }
+    }
+
+    private func refreshThemeMetadataIfNeeded() {
+        hasAPIKey = APIKeyProvider.getAPIKey() != nil
+        hasVerifiedAPIKey = UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
+
+        guard hasAPIKey, hasVerifiedAPIKey, hasSetsNeedingThemeMetadata, !isRefreshingThemeMetadata else {
+            return
+        }
+
+        isRefreshingThemeMetadata = true
+        Task {
+            await viewModel.refreshThemeMetadata(for: sets, modelContext: modelContext)
+            isRefreshingThemeMetadata = false
         }
     }
 }

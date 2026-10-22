@@ -4,6 +4,7 @@ struct RebrickableSetDTO: Decodable, Sendable {
     let setNum: String
     let name: String
     let year: Int
+    let themeId: Int?
     let numParts: Int
     let setImgUrl: String?
 
@@ -11,6 +12,7 @@ struct RebrickableSetDTO: Decodable, Sendable {
         case setNum = "set_num"
         case name
         case year
+        case themeId = "theme_id"
         case numParts = "num_parts"
         case setImgUrl = "set_img_url"
     }
