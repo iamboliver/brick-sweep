@@ -27,3 +27,9 @@ Package.resolved
 .claude/
 .agents/
 BrickSweep.storekit
+
+# Local agent tooling (not part of the codebase)
+.beads*
+.dolt/
+AGENTS.md
+CLAUDE.md
