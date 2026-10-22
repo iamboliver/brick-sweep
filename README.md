@@ -1,120 +1,104 @@
 # BrickSweep
 
-A native iOS app for tracking missing parts across your brick sets. Import sets from [Rebrickable](https://rebrickable.com), tap to mark pieces as missing, and export a BrickLink wanted list to order replacements.
+BrickSweep is an iPhone app for checking brick-set completeness. Import a set from Rebrickable, mark missing pieces while checking the build, and combine missing parts from the whole collection into one replacement list.
 
-# Why I build this
+## Why I Built This
 
-Built for my autistic son, who is obsessed with Lego but struggles to pack up sets. I needed a fast way to track what was missing and order replacements without spending an hour on BrickLink manually.
+I built BrickSweep for my autistic son, who loves building sets but often loses pieces. I wanted a quick way to see what was missing and prepare a replacement order without manually rebuilding a list elsewhere.
 
 ## Features
 
-- **Import sets by number** — fetches set details, full parts inventory, and figures from the Rebrickable API
-- **Tap-to-track missing parts** — tap a part card to increment the missing count; long-press for more options
-- **Global missing parts view** — aggregates missing parts across all your sets, grouped by part and colour
-- **Export to BrickLink** — generates BrickLink XML (wanted list format) or CSV, ready to copy or share
-- **Completion tracking** — per-set progress rings and summary stats
-- **Filter and sort** — filter by missing/accounted for, sort by colour or part number, search by part number or element ID
-- **Rebrickable sync** — optionally add imported sets to your Rebrickable collection
+- **Import by set number** - load set details, inventory, and minifig parts from Rebrickable.
+- **Reliable large-set loading** - paginated downloads, visible progress, partial results, and retry support.
+- **Track missing parts** - adjust missing quantities directly from each part card.
+- **Collection-wide missing list** - aggregate matching parts by part number and colour across every stored set.
+- **Replacement tracking** - move obtained pieces to a separate Replaced view and undo when needed.
+- **Theme browsing** - group sets automatically by their top-level Rebrickable theme, including metadata backfill for existing collections.
+- **Completion summaries** - view quantity-based progress for each set and theme.
+- **Search, filter, and sort** - find parts by identifiers and focus on missing or accounted-for pieces.
+- **Pro export** - generate BrickLink Wanted List XML or CSV, then copy or share it.
 
-## Screenshots
-
-_Coming soon_
+The free tier stores up to five sets. BrickSweep Pro is a one-time, non-consumable purchase that unlocks unlimited set storage and export. Theme browsing and the core checking workflow remain free.
 
 ## Requirements
 
-- iOS 18.0+
-- Xcode 16.0+
+- iOS 18.0 or later
+- Xcode 16.0 or later
+- XcodeGen 2.38 or later
 - A free [Rebrickable API key](https://rebrickable.com/api/)
+
+BrickSweep currently targets iPhone only.
 
 ## Getting Started
 
-### 1. Clone the repo
-
 ```bash
-git clone https://github.com/your-username/lego-missing-piece-tracker.git
-cd lego-missing-piece-tracker
-```
-
-### 2. Generate the Xcode project
-
-The project uses [XcodeGen](https://github.com/yonaskolb/XcodeGen) — install it if you haven't already:
-
-```bash
+git clone https://github.com/iamboliver/brick-sweep.git
+cd brick-sweep
 brew install xcodegen
-```
-
-Then generate:
-
-```bash
 xcodegen generate
+open BrickSweep.xcodeproj
 ```
 
-### 3. Build and run
+Run the `BrickSweep` scheme on an iPhone simulator or connected iPhone. On first launch, open Settings, enter a Rebrickable API key, and use Save and Test Key. Imports stay disabled until the key has been verified.
 
-Open `LegoMissingParts.xcodeproj` in Xcode, or build from the command line:
+To build from the command line:
 
 ```bash
-xcodebuild build -scheme LegoMissingParts -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+xcodebuild build \
+  -project BrickSweep.xcodeproj \
+  -scheme BrickSweep \
+  -destination 'generic/platform=iOS'
 ```
-
-### 4. Add your API key
-
-On first launch, go to the **Settings** tab and enter your Rebrickable API key. The key is stored securely in the Keychain.
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| UI | SwiftUI |
-| Persistence | SwiftData |
-| Networking | URLSession + async/await |
-| Secrets | Keychain (Security framework) |
-| Concurrency | Swift 6 strict concurrency |
-| Project generation | XcodeGen |
-| Testing | Swift Testing |
-
-No third-party dependencies.
 
 ## Architecture
 
-The app follows **MVVM** with `@Observable` view models:
+BrickSweep uses SwiftUI, SwiftData, Swift concurrency, StoreKit 2, and a protocol-based URLSession networking layer. It has no third-party runtime dependencies.
 
-```
-App/                  → App entry point, TabView root
-Models/               → SwiftData entities (LegoSet, LegoPartInstance, GlobalMissingPart)
-Views/                → SwiftUI views, organised by tab
-ViewModels/           → @MainActor @Observable view models
-Services/             → Import, export, and colour mapping logic
-API/                  → Protocol-based Rebrickable client + DTOs
-Utilities/            → Keychain helper, colour sort order
-Resources/            → Asset catalog, colour mapping fallback JSON
+```text
+App/          App entry point, tab navigation, and StoreKit state
+API/          Rebrickable client, protocol, errors, and DTOs
+Models/       SwiftData entities and derived aggregate models
+Services/     Import, theme, export, and colour-mapping logic
+ViewModels/   Main-actor observable presentation state
+Views/        SwiftUI screens grouped by feature
+Utilities/    Keychain, constants, and shared helpers
+Resources/    Asset catalogue and colour-mapping fallback data
 ```
 
-Key patterns:
-- **Protocol-based API client** (`RebrickableAPIClientProtocol`) for testability
-- **`@Bindable`** for direct SwiftData model mutation in views
-- **Aggregate pattern** — `GlobalMissingPart.aggregate(from:)` groups parts by `(partNum, colorId)` across sets
-- **BrickLink ID storage at import** — external IDs fetched once and persisted for offline export
-- **Static JSON fallback** for Rebrickable-to-BrickLink colour mapping
+Important implementation details:
+
+- Rebrickable inventory pages are fetched in small requests with retry and request pacing.
+- Part updates write directly to SwiftData; global missing and replaced lists are derived when displayed.
+- API keys are stored in the Keychain and authenticated API responses are not cached.
+- The StoreKit product is fetched using its exact App Store Connect identifier, and entitlements are refreshed at launch.
+- Existing sets without theme metadata are refreshed when theme browsing is opened.
 
 ## Export Formats
 
-### BrickLink XML
+Export is a BrickSweep Pro feature.
 
-Generates a `<INVENTORY>` XML file compatible with BrickLink's [Wanted List upload](https://www.bricklink.com/v2/wanted/upload.page). Part IDs and colour IDs are mapped to BrickLink's numbering system.
-
-### CSV
-
-Comma-separated file with part number, name, colour, quantity, and contributing set numbers.
+- **BrickLink XML** produces an `INVENTORY` document suitable for BrickLink's Wanted List upload flow.
+- **CSV** includes part number, name, colour, missing quantity, and contributing set numbers.
 
 ## Running Tests
 
 ```bash
-xcodebuild test -scheme LegoMissingParts -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+xcodebuild test \
+  -project BrickSweep.xcodeproj \
+  -scheme BrickSweep \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
-Tests cover DTO decoding, export formatting (including XML/CSV escaping), and colour mapping fallback behaviour.
+Tests cover API decoding, paginated imports and recovery, part deduplication, colour mapping, and XML/CSV export escaping and formatting.
 
-## Licence
+## Roadmap
 
-LEGO is a trademark of the LEGO Group, which does not sponsor, authorise, or endorse this project. BrickLink and Rebrickable are independent services not affiliated with this project.
+The next planned phases are custom collections, Find in Collection, and bulk import. Rebrickable collection sync is not currently available. See [plan.md](plan.md) for status and scope.
+
+## Privacy
+
+Collection data remains on the device. BrickSweep sends the user's API key and requested set identifiers to Rebrickable only when performing API operations. The app does not include analytics or advertising SDKs.
+
+## Legal
+
+LEGO is a trademark of the LEGO Group, which does not sponsor, authorise, or endorse this project. BrickLink and Rebrickable are independent services and are not affiliated with BrickSweep.

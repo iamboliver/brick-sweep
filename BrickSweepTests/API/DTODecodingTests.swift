@@ -24,8 +24,25 @@ struct DTODecodingTests {
         #expect(dto.setNum == "75192-1")
         #expect(dto.name == "Millennium Falcon")
         #expect(dto.year == 2017)
+        #expect(dto.themeId == 158)
         #expect(dto.numParts == 7541)
         #expect(dto.setImgUrl == "https://cdn.rebrickable.com/media/sets/75192-1.jpg")
+    }
+
+    @Test("Decode RebrickableThemeDTO")
+    func decodeTheme() throws {
+        let json = """
+        {
+            "id": 158,
+            "parent_id": 171,
+            "name": "Star Wars"
+        }
+        """.data(using: .utf8)!
+
+        let dto = try JSONDecoder().decode(RebrickableThemeDTO.self, from: json)
+        #expect(dto.id == 158)
+        #expect(dto.parentId == 171)
+        #expect(dto.name == "Star Wars")
     }
 
     @Test("Decode PaginatedResponse of sets")

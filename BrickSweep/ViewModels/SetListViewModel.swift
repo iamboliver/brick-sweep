@@ -60,6 +60,10 @@ final class SetListViewModel {
         }
     }
 
+    func refreshThemeMetadata(for sets: [LegoSet], modelContext: ModelContext) async {
+        await importService.refreshThemeMetadata(for: sets, modelContext: modelContext)
+    }
+
     func deleteSet(_ legoSet: LegoSet, modelContext: ModelContext) {
         modelContext.delete(legoSet)
         do {

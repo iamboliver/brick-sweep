@@ -5,6 +5,7 @@ protocol RebrickableAPIClientProtocol: Sendable {
     func fetchSetParts(setNum: String) async throws -> [RebrickableSetPartDTO]
     func fetchSetPartsPage(urlString: String) async throws -> PaginatedResponse<RebrickableSetPartDTO>
     func fetchSetMinifigs(setNum: String) async throws -> [RebrickableMinifigDTO]
+    func fetchTheme(id: Int) async throws -> RebrickableThemeDTO
     func fetchColor(id: Int) async throws -> RebrickableColorDTO
     func addSetToCollection(userToken: String, setNum: String) async throws
 }
@@ -68,6 +69,11 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
         }
 
         return allMinifigs
+    }
+
+    func fetchTheme(id: Int) async throws -> RebrickableThemeDTO {
+        let url = "\(baseURL)themes/\(id)/"
+        return try await fetch(urlString: url)
     }
 
     func fetchColor(id: Int) async throws -> RebrickableColorDTO {

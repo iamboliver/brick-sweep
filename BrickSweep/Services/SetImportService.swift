@@ -3,10 +3,12 @@ import SwiftData
 
 struct SetImportService: Sendable {
     private let apiClient: RebrickableAPIClientProtocol
+    private let themeNameCache: ThemeNameCache
     private static let rebrickableBase = "https://rebrickable.com/api/v3/lego/"
 
-    init(apiClient: RebrickableAPIClientProtocol) {
+    init(apiClient: RebrickableAPIClientProtocol, themeNameCache: ThemeNameCache = .shared) {
         self.apiClient = apiClient
+        self.themeNameCache = themeNameCache
     }
 
     static func normalizeSetNum(_ input: String) -> String {
@@ -36,11 +38,18 @@ struct SetImportService: Sendable {
         }
 
         let setDTO = try await apiClient.fetchSet(setNum: normalized)
+        let themeName: String? = if let themeId = setDTO.themeId {
+            await themeNameCache.topLevelName(for: themeId, apiClient: apiClient)
+        } else {
+            nil
+        }
 
         let legoSet = LegoSet(
             setNum: setDTO.setNum,
             name: setDTO.name,
             year: setDTO.year,
+            themeId: setDTO.themeId,
+            themeName: themeName,
             numParts: setDTO.numParts,
             imageUrl: setDTO.setImgUrl,
             isImporting: true
@@ -133,6 +142,22 @@ struct SetImportService: Sendable {
         legoSet.isImporting = true
         try modelContext.save()
         try await loadParts(into: legoSet, setNum: legoSet.setNum, modelContext: modelContext)
+    }
+
+    @MainActor
+    func refreshThemeMetadata(for sets: [LegoSet], modelContext: ModelContext) async {
+        for legoSet in sets where legoSet.themeId == nil || legoSet.themeName == nil {
+            do {
+                let setDTO = try await apiClient.fetchSet(setNum: legoSet.setNum)
+                legoSet.themeId = setDTO.themeId
+                if let themeId = setDTO.themeId {
+                    legoSet.themeName = await themeNameCache.topLevelName(for: themeId, apiClient: apiClient)
+                }
+                try modelContext.save()
+            } catch {
+                continue
+            }
+        }
     }
 
     // MARK: - Combined (kept for test compatibility)
