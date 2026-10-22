@@ -27,10 +27,10 @@ struct ThemeGroupRowView: View {
 
             Spacer()
 
-            if group.trackedTypeCount > 0 {
+            if group.totalRequiredQty > 0 {
                 CompletionRing(
-                    completed: group.completedTypeCount,
-                    total: group.trackedTypeCount,
+                    completed: group.accountedQty,
+                    total: group.totalRequiredQty,
                     size: 36
                 )
             }

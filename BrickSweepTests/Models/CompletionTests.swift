@@ -25,6 +25,31 @@ struct CompletionTests {
     func fractionWithinBounds() {
         #expect(Completion.fraction(completed: 1, total: 4) == 0.25)
     }
+
+    @Test("Percent rounds down so a large set with 2 missing shows 99% (GitHub #1)")
+    func percentLargeSetWithTwoMissing() {
+        #expect(Completion.percent(completed: 1_198, total: 1_200) == 99)
+        #expect(Completion.percent(completed: 99_999, total: 100_000) == 99)
+    }
+
+    @Test("Percent is exactly 100 only when nothing is missing")
+    func percentExactlyComplete() {
+        #expect(Completion.percent(completed: 1_200, total: 1_200) == 100)
+        #expect(Completion.percent(completed: 1_199, total: 1_200) < 100)
+    }
+
+    @Test("Percent is not shaved by floating-point error", arguments: [29, 57, 58])
+    func percentAvoidsFloatingPointError(value: Int) {
+        // Int(Double(29) / 100 * 100) == 28, which the integer path avoids.
+        #expect(Completion.percent(completed: value, total: 100) == value)
+    }
+
+    @Test("Percent clamps out-of-range inputs and treats zero total as complete")
+    func percentClampsAndHandlesZeroTotal() {
+        #expect(Completion.percent(completed: 120, total: 100) == 100)
+        #expect(Completion.percent(completed: -5, total: 100) == 0)
+        #expect(Completion.percent(completed: 0, total: 0) == 100)
+    }
 }
 
 @MainActor
@@ -40,8 +65,8 @@ struct LegoSetCompletionTests {
         return ModelContext(container)
     }
 
-    private func makeSet(numParts: Int, context: ModelContext) -> LegoSet {
-        let set = LegoSet(setNum: "1234-1", name: "Test Set", year: 2024, numParts: numParts, imageUrl: nil)
+    private func makeSet(setNum: String = "1234-1", numParts: Int, context: ModelContext) -> LegoSet {
+        let set = LegoSet(setNum: setNum, name: "Test Set", year: 2024, numParts: numParts, imageUrl: nil)
         context.insert(set)
         return set
     }
@@ -119,5 +144,38 @@ struct LegoSetCompletionTests {
         partA.missingQty = 0
         partB.missingQty = 0
         #expect(set.completionFraction == 1.0)
+    }
+
+    @Test("Set completion is quantity-based, not part-type based")
+    func setCompletionUsesQuantities() throws {
+        let context = try makeContext()
+        let set = makeSet(numParts: 12, context: context)
+        let partA = makePart(requiredQty: 10, set: set, context: context)
+        _ = makePart(requiredQty: 1, set: set, context: context)
+        _ = makePart(requiredQty: 1, set: set, context: context)
+
+        // 1 of 3 part types missing would show 66%; 1 of 12 pieces missing is 91%.
+        partA.missingQty = 1
+        #expect(set.accountedQty == 11)
+        #expect(set.totalRequiredQty == 12)
+        #expect(Completion.percent(completed: set.accountedQty, total: set.totalRequiredQty) == 91)
+    }
+
+    @Test("Theme group completion sums piece quantities across its sets")
+    func themeGroupCompletionUsesQuantities() throws {
+        let context = try makeContext()
+        let large = makeSet(setNum: "1000-1", numParts: 1_200, context: context)
+        let largePart = makePart(requiredQty: 1_200, set: large, context: context)
+        let small = makeSet(setNum: "2000-1", numParts: 50, context: context)
+        _ = makePart(requiredQty: 50, set: small, context: context)
+
+        let group = ThemeGroup(name: "City", sets: [large, small])
+        #expect(group.totalRequiredQty == 1_250)
+        #expect(group.accountedQty == 1_250)
+        #expect(Completion.percent(completed: group.accountedQty, total: group.totalRequiredQty) == 100)
+
+        largePart.missingQty = 2
+        #expect(group.accountedQty == 1_248)
+        #expect(Completion.percent(completed: group.accountedQty, total: group.totalRequiredQty) == 99)
     }
 }
