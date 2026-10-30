@@ -7,10 +7,6 @@ struct SetRowView: View {
         legoSet.parts.filter { $0.missingQty > 0 }.count
     }
 
-    private var completedCount: Int {
-        legoSet.parts.count - missingCount
-    }
-
     var body: some View {
         HStack(spacing: AppTheme.Spacing.md) {
             PartImage(url: legoSet.imageUrl, size: 72, fallbackIcon: "square.stack.3d.up")
@@ -60,8 +56,8 @@ struct SetRowView: View {
                     .tint(AppTheme.legoYellow)
             } else if !legoSet.parts.isEmpty {
                 CompletionRing(
-                    completed: completedCount,
-                    total: legoSet.parts.count,
+                    completed: legoSet.accountedQty,
+                    total: legoSet.totalRequiredQty,
                     size: 36
                 )
             }
