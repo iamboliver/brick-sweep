@@ -1,12 +1,14 @@
 import Foundation
 
 enum AppConstants {
+    static let lastFoundingBuild = 6
     enum Keychain {
         static let apiKey = "rebrickable_api_key"
         static let userToken = "rebrickable_user_token"
     }
 
     enum UserDefaultsKeys {
+        static let verifiedFoundingUser = "verifiedFoundingUser"
         static let syncSetsToRebrickable = "syncSetsToRebrickable"
         static let hasVerifiedAPIKey = "hasVerifiedAPIKey"
     }

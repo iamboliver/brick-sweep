@@ -11,10 +11,41 @@ struct PaywallView: View {
     let context: PaywallContext
     @Environment(StoreManager.self) private var storeManager
     @Environment(\.dismiss) private var dismiss
+    /// Set once this paywall has tried the founder check, so a failed check (offline,
+    /// or a StoreKit error) shows the paywall instead of a spinner that never ends.
+    @State private var hasTriedFoundingCheck = false
 
     var body: some View {
         NavigationStack {
-            ScrollView {
+            Group {
+                if !storeManager.hasCheckedFoundingStatus && !hasTriedFoundingCheck {
+                    ProgressView("Checking Pro access…")
+                } else {
+                    purchaseContent
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(dismissLabel) { dismiss() }
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .task {
+            if !storeManager.hasCheckedFoundingStatus {
+                await storeManager.refreshPurchaseStatus()
+            }
+            hasTriedFoundingCheck = true
+        }
+        .onChange(of: storeManager.isPro, initial: true) { _, isPro in
+            if isPro { dismiss() }
+        }
+        .presentationDetents(context == .setLimit ? [.large] : [.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var purchaseContent: some View {
+        ScrollView {
                 VStack(spacing: AppTheme.Spacing.xl) {
 
                     // MARK: Header
@@ -33,6 +64,14 @@ struct PaywallView: View {
                             .padding(.horizontal, AppTheme.Spacing.xl)
                     }
                     .padding(.top, AppTheme.Spacing.xl)
+
+                    if !storeManager.hasCheckedFoundingStatus {
+                        Text("Installed BrickSweep before version 1.1? Your free founding-member Pro unlocks once BrickSweep can reach the App Store. Check your connection, then tap Restore Purchases.")
+                            .font(AppTheme.Typography.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, AppTheme.Spacing.xl)
+                    }
 
                     // MARK: Feature list
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.lg) {
@@ -146,15 +185,6 @@ struct PaywallView: View {
                         .padding(.bottom, AppTheme.Spacing.xl)
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(dismissLabel) { dismiss() }
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .presentationDetents(context == .setLimit ? [.large] : [.medium, .large])
-        .presentationDragIndicator(.visible)
     }
 
     // MARK: - Context-specific copy

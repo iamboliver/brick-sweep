@@ -15,7 +15,21 @@ final class StoreManager {
 
     // MARK: - Public state
 
-    private(set) var isPro: Bool = false
+    var isPro: Bool { hasPurchasedPro || isFoundingUser }
+    private(set) var hasPurchasedPro = false
+    private(set) var hasCheckedFoundingStatus = false
+    private var verifiedFoundingUser: Bool
+    var isFoundingUser: Bool {
+        #if DEBUG
+        if let foundingUserOverride { return foundingUserOverride }
+        #endif
+        return verifiedFoundingUser
+    }
+
+    #if DEBUG
+    /// Session-only simulation; never writes the verified cache.
+    var foundingUserOverride: Bool?
+    #endif
     private(set) var proProduct: Product?
     private(set) var isLoading: Bool = false
     private(set) var purchaseError: String?
@@ -25,14 +39,38 @@ final class StoreManager {
     // MARK: - Private state
 
     private var transactionListener: Task<Void, Never>?
+    private var purchaseRefreshTask: Task<Void, Never>?
 
     // MARK: - Init / deinit
 
-    init() {
+    private let appTransactionProvider: @MainActor () async throws -> AppInstallRecord
+    private let purchasedProProvider: @MainActor () async -> Bool
+    private let defaults: UserDefaults
+
+    init(
+        defaults: UserDefaults = .standard,
+        appTransactionProvider: @escaping @MainActor () async throws -> AppInstallRecord = StoreManager.appInstallRecord,
+        purchasedProProvider: @escaping @MainActor () async -> Bool = StoreManager.purchasedPro,
+        startsAutomatically: Bool = true
+    ) {
+        self.defaults = defaults
+        self.appTransactionProvider = appTransactionProvider
+        self.purchasedProProvider = purchasedProProvider
+        verifiedFoundingUser = defaults.bool(forKey: AppConstants.UserDefaultsKeys.verifiedFoundingUser)
+        #if DEBUG
+        switch ProcessInfo.processInfo.environment["BRICKSWEEP_FOUNDING_USER"] {
+        case "1": foundingUserOverride = true
+        case "0": foundingUserOverride = false
+        default: break
+        }
+        #endif
+        guard startsAutomatically else { return }
         transactionListener = listenForTransactions()
         Task {
-            await fetchProductWithRetry()
             await refreshPurchaseStatus()
+        }
+        Task {
+            await fetchProductWithRetry()
         }
     }
 
@@ -88,7 +126,7 @@ final class StoreManager {
             case .success(let verificationResult):
                 if case .verified(let transaction) = verificationResult {
                     await transaction.finish()
-                    isPro = true
+                    hasPurchasedPro = true
                     return true
                 }
                 purchaseError = "Purchase could not be verified."
@@ -120,9 +158,19 @@ final class StoreManager {
             purchaseError = "Could not contact the App Store to restore purchases. Please try again."
         }
         await refreshPurchaseStatus()
-        purchaseMessage = isPro
-            ? "Purchases restored."
-            : "No previous BrickSweep Pro purchase was found for this Apple ID."
+        purchaseMessage = Self.restoreMessage(hasPurchasedPro: hasPurchasedPro, isFoundingUser: isFoundingUser)
+    }
+
+    /// What Restore Purchases reports. A founder who never bought Pro has nothing to
+    /// restore, so they're told why they have Pro instead of "Purchases restored."
+    static func restoreMessage(hasPurchasedPro: Bool, isFoundingUser: Bool) -> String {
+        if hasPurchasedPro {
+            "Purchases restored."
+        } else if isFoundingUser {
+            "No purchase to restore. You already have Pro free as a founding member."
+        } else {
+            "No previous BrickSweep Pro purchase was found for this Apple ID."
+        }
     }
 
     // MARK: - Transaction listener
@@ -138,7 +186,49 @@ final class StoreManager {
 
     // MARK: - Helpers
 
-    private func refreshPurchaseStatus() async {
+    func refreshPurchaseStatus() async {
+        if let purchaseRefreshTask {
+            await purchaseRefreshTask.value
+            return
+        }
+        let task = Task { @MainActor in
+            async let foundingCheck: Void = refreshFoundingStatus()
+            hasPurchasedPro = await purchasedProProvider()
+            await foundingCheck
+        }
+        purchaseRefreshTask = task
+        await task.value
+        purchaseRefreshTask = nil
+    }
+
+    func refreshFoundingStatus() async {
+        do {
+            let record = try await appTransactionProvider()
+            // An explicit verification failure cannot confer founder access.
+            if case .verified(let originalAppVersion) = record,
+               let build = Int(originalAppVersion) {
+                verifiedFoundingUser = build <= AppConstants.lastFoundingBuild
+            } else {
+                verifiedFoundingUser = false
+            }
+            defaults.set(verifiedFoundingUser, forKey: AppConstants.UserDefaultsKeys.verifiedFoundingUser)
+            hasCheckedFoundingStatus = true
+        } catch {
+            // Keep the last verified result when StoreKit is unavailable/offline.
+            hasCheckedFoundingStatus = defaults.object(forKey: AppConstants.UserDefaultsKeys.verifiedFoundingUser) != nil
+        }
+    }
+
+    static func appInstallRecord() async throws -> AppInstallRecord {
+        switch try await AppTransaction.shared {
+        case .verified(let transaction):
+            return .verified(originalAppVersion: transaction.originalAppVersion)
+        case .unverified:
+            return .unverified
+        }
+    }
+
+    static func purchasedPro() async -> Bool {
         var hasPro = false
         for await verificationResult in Transaction.currentEntitlements {
             if case .verified(let transaction) = verificationResult,
@@ -149,15 +239,21 @@ final class StoreManager {
                 await transaction.finish()
             }
         }
-        isPro = hasPro
+        return hasPro
     }
 
     @MainActor
     private func handle(verificationResult: VerificationResult<Transaction>) async {
         guard case .verified(let transaction) = verificationResult else { return }
         if transaction.productID == AppConstants.IAP.proProductID {
-            isPro = transaction.revocationDate == nil
+            hasPurchasedPro = transaction.revocationDate == nil
             await transaction.finish()
         }
     }
+}
+
+/// Only the StoreKit adapter creates a verified record in production.
+enum AppInstallRecord: Equatable {
+    case verified(originalAppVersion: String)
+    case unverified
 }
