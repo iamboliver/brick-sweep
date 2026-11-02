@@ -19,14 +19,16 @@ struct ThemeGroup: Identifiable, Hashable {
         }
     }
 
-    var completedTypeCount: Int {
-        sets.reduce(0) { total, set in
-            total + set.parts.filter { $0.missingQty == 0 }.count
-        }
+    var totalRequiredQty: Int {
+        sets.reduce(0) { $0 + $1.totalRequiredQty }
     }
 
-    var trackedTypeCount: Int {
-        sets.reduce(0) { $0 + $1.parts.count }
+    var accountedQty: Int {
+        sets.reduce(0) { $0 + $1.accountedQty }
+    }
+
+    var completionProgress: CompletionProgress {
+        CompletionProgress(completed: accountedQty, total: totalRequiredQty)
     }
 
     init(name: String, sets: [LegoSet]) {

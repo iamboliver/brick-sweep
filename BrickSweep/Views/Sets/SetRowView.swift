@@ -7,8 +7,9 @@ struct SetRowView: View {
         legoSet.parts.filter { $0.missingQty > 0 }.count
     }
 
-    private var completedCount: Int {
-        legoSet.parts.count - missingCount
+    /// What the completion ring shows: pieces, not part types.
+    var ringProgress: CompletionProgress {
+        legoSet.completionProgress
     }
 
     var body: some View {
@@ -59,11 +60,7 @@ struct SetRowView: View {
                     .controlSize(.small)
                     .tint(AppTheme.legoYellow)
             } else if !legoSet.parts.isEmpty {
-                CompletionRing(
-                    completed: completedCount,
-                    total: legoSet.parts.count,
-                    size: 36
-                )
+                CompletionRing(progress: ringProgress, size: 36)
             }
         }
         .padding(.vertical, AppTheme.Spacing.xs)
