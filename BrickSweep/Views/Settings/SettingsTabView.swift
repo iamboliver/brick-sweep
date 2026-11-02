@@ -306,6 +306,11 @@ enum APIKeyProvider {
     static func getAPIKey() -> String? {
         KeychainHelper.read(key: AppConstants.Keychain.apiKey)
     }
+
+    /// True when the user has saved their own key and it passed Test Connection.
+    static func hasVerifiedAPIKey() -> Bool {
+        getAPIKey() != nil && UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
+    }
 }
 
 enum SyncTokenProvider {

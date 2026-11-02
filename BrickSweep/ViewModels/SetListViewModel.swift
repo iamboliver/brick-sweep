@@ -103,7 +103,7 @@ final class SetListViewModel {
             // Partial set (if created) is kept with importFailed = true.
             // User can open it and retry, or swipe to delete it.
             errorMessage = startedSet != nil
-                ? "Rebrickable was temporarily unavailable. Your progress was saved — open the set and tap Retry Download when you're ready."
+                ? "The download didn't finish. Your progress was saved — open the set and tap Retry Download when you're ready."
                 : error.localizedDescription
             showError = true
             isLoading = false

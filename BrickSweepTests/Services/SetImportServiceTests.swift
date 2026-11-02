@@ -496,7 +496,7 @@ struct SetImportServiceTests {
 
 // MARK: - Helpers
 
-private enum TestFailure: Error { case unexpectedOutcome }
+enum TestFailure: Error { case unexpectedOutcome }
 
 /// Yields until the condition holds; fails the test (instead of hanging) if it never does.
 @MainActor
@@ -507,7 +507,7 @@ private func waitUntil(_ condition: () -> Bool, sourceLocation: SourceLocation =
     try #require(condition(), "condition never became true", sourceLocation: sourceLocation)
 }
 
-private func requireCreated(_ outcome: SetAddOutcome) throws -> LegoSet {
+func requireCreated(_ outcome: SetAddOutcome) throws -> LegoSet {
     guard case .created(let set) = outcome else {
         Issue.record("expected .created, got \(outcome)")
         throw TestFailure.unexpectedOutcome
@@ -711,12 +711,16 @@ struct SetListViewModelDuplicateTests {
 // MARK: - Test doubles
 
 @MainActor
-private struct TestHarness {
+struct TestHarness {
     let container: ModelContainer
     let context: ModelContext
     let service: SetImportService
 
-    init(apiClient: MockRebrickableAPIClient) throws {
+    init(
+        apiClient: MockRebrickableAPIClient,
+        setDataClient: SetDataClientProtocol? = nil,
+        usesOwnAPIKey: @escaping @Sendable () -> Bool = { true }
+    ) throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         container = try ModelContainer(
             for: LegoSet.self,
@@ -724,13 +728,13 @@ private struct TestHarness {
             configurations: configuration
         )
         context = ModelContext(container)
-        service = SetImportService(apiClient: apiClient)
+        service = SetImportService(apiClient: apiClient, setDataClient: setDataClient, usesOwnAPIKey: usesOwnAPIKey)
     }
 }
 
 /// Holds the first parts download until the test releases it. Later downloads are
 /// not held, so a wrongly started second import fails the test instead of hanging it.
-private actor Gate {
+actor Gate {
     private var isOpen = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
 
@@ -747,7 +751,7 @@ private actor Gate {
 }
 
 /// Call counts and switchable failures shared by copies of the mock client.
-private final class MockState: @unchecked Sendable {
+final class MockState: @unchecked Sendable {
     private let lock = NSLock()
     private var _fetchSetCalls = 0
     private var _partPageCalls = 0
@@ -768,7 +772,7 @@ private final class MockState: @unchecked Sendable {
     func setFailingURLs(_ urls: Set<String>) { lock.withLock { failingURLs = urls } }
 }
 
-private struct MockRebrickableAPIClient: RebrickableAPIClientProtocol {
+struct MockRebrickableAPIClient: RebrickableAPIClientProtocol {
     enum MockError: Error, Equatable {
         case pageFailed
     }

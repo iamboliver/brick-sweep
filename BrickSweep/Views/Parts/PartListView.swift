@@ -79,7 +79,7 @@ struct PartListView: View {
                 ContentUnavailableView {
                     Label("Import Paused", systemImage: "exclamationmark.circle")
                 } description: {
-                    Text("Rebrickable was temporarily unavailable before any parts could be loaded. Your set was saved, and you can retry now.")
+                    Text("The download didn't finish before any parts could be loaded. Your set was saved, and you can retry now.")
                 } actions: {
                     Button {
                         isRetrying = true
@@ -115,7 +115,7 @@ struct PartListView: View {
 
                         if legoSet.importFailed {
                             VStack(spacing: AppTheme.Spacing.sm) {
-                                Text("Import paused — Rebrickable was temporarily unavailable. Your progress was saved.")
+                                Text("Import paused — the download didn't finish. Your progress was saved.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .multilineTextAlignment(.center)

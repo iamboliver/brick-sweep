@@ -13,7 +13,9 @@ struct SetsTabView: View {
     @Query(sort: \LegoSet.dateAdded, order: .reverse) private var sets: [LegoSet]
     @State private var viewModel = SetListViewModel(
         importService: SetImportService(
-            apiClient: RebrickableAPIClient(apiKeyProvider: { APIKeyProvider.getAPIKey() })
+            apiClient: RebrickableAPIClient(apiKeyProvider: { APIKeyProvider.getAPIKey() }),
+            setDataClient: SetDataClient(),
+            usesOwnAPIKey: { APIKeyProvider.hasVerifiedAPIKey() }
         )
     )
     @Environment(AppNavigator.self) private var navigator
