@@ -57,7 +57,11 @@ final class LegoSet {
         totalRequiredQty - totalMissingQty
     }
 
+    var completionProgress: CompletionProgress {
+        CompletionProgress(completed: accountedQty, total: totalRequiredQty)
+    }
+
     var completionFraction: Double {
-        Completion.fraction(completed: accountedQty, total: totalRequiredQty)
+        completionProgress.fraction
     }
 }

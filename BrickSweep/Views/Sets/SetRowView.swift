@@ -7,6 +7,11 @@ struct SetRowView: View {
         legoSet.parts.filter { $0.missingQty > 0 }.count
     }
 
+    /// What the completion ring shows: pieces, not part types.
+    var ringProgress: CompletionProgress {
+        legoSet.completionProgress
+    }
+
     var body: some View {
         HStack(spacing: AppTheme.Spacing.md) {
             PartImage(url: legoSet.imageUrl, size: 72, fallbackIcon: "square.stack.3d.up")
@@ -55,11 +60,7 @@ struct SetRowView: View {
                     .controlSize(.small)
                     .tint(AppTheme.legoYellow)
             } else if !legoSet.parts.isEmpty {
-                CompletionRing(
-                    completed: legoSet.accountedQty,
-                    total: legoSet.totalRequiredQty,
-                    size: 36
-                )
+                CompletionRing(progress: ringProgress, size: 36)
             }
         }
         .padding(.vertical, AppTheme.Spacing.xs)

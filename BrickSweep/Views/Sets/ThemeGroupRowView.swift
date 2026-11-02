@@ -3,6 +3,11 @@ import SwiftUI
 struct ThemeGroupRowView: View {
     let group: ThemeGroup
 
+    /// What the completion ring shows: pieces across the theme's sets, not part types.
+    var ringProgress: CompletionProgress {
+        group.completionProgress
+    }
+
     var body: some View {
         HStack(spacing: AppTheme.Spacing.lg) {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
@@ -27,12 +32,8 @@ struct ThemeGroupRowView: View {
 
             Spacer()
 
-            if group.totalRequiredQty > 0 {
-                CompletionRing(
-                    completed: group.accountedQty,
-                    total: group.totalRequiredQty,
-                    size: 36
-                )
+            if ringProgress.total > 0 {
+                CompletionRing(progress: ringProgress, size: 36)
             }
         }
         .padding(.vertical, AppTheme.Spacing.xs)

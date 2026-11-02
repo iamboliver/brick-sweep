@@ -14,7 +14,14 @@ struct PartListView: View {
 
     private var totalQty: Int { legoSet.totalRequiredQty }
     private var missingQty: Int { legoSet.totalMissingQty }
-    private var accountedQty: Int { legoSet.accountedQty }
+
+    /// While importing, the ring shows download progress against the set's
+    /// published piece count; afterwards, pieces accounted for.
+    var headerProgress: CompletionProgress {
+        legoSet.isImporting
+            ? CompletionProgress(completed: totalQty, total: legoSet.numParts)
+            : legoSet.completionProgress
+    }
 
     // Used for filter bar tabs — unique part types, not quantities
     private var missingTypeCount: Int {
@@ -28,11 +35,7 @@ struct PartListView: View {
             // Summary header
             if !legoSet.isImporting || !legoSet.parts.isEmpty {
                 HStack(spacing: AppTheme.Spacing.lg) {
-                    CompletionRing(
-                        completed: legoSet.isImporting ? totalQty : accountedQty,
-                        total: legoSet.isImporting ? legoSet.numParts : totalQty,
-                        size: 52
-                    )
+                    CompletionRing(progress: headerProgress, size: 52)
 
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
                         if legoSet.isImporting {

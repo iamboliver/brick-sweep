@@ -15,6 +15,20 @@ enum Completion {
     static func percent(completed: Int, total: Int) -> Int {
         guard total > 0 else { return 100 }
         let clamped = min(total, max(0, completed))
-        return clamped * 100 / total
+        // Full-width multiply so clamped * 100 cannot overflow; the quotient is
+        // always within 0...100, so the divide cannot overflow either.
+        let product = clamped.multipliedFullWidth(by: 100)
+        return total.dividingFullWidth(product).quotient
     }
+}
+
+/// The pieces a completion ring represents. Built by the model
+/// (`LegoSet.completionProgress`, `ThemeGroup.completionProgress`) so views
+/// cannot accidentally pass part-type counts.
+struct CompletionProgress: Equatable, Sendable {
+    let completed: Int
+    let total: Int
+
+    var fraction: Double { Completion.fraction(completed: completed, total: total) }
+    var percent: Int { Completion.percent(completed: completed, total: total) }
 }

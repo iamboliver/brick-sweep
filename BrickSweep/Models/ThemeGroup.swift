@@ -27,6 +27,10 @@ struct ThemeGroup: Identifiable, Hashable {
         sets.reduce(0) { $0 + $1.accountedQty }
     }
 
+    var completionProgress: CompletionProgress {
+        CompletionProgress(completed: accountedQty, total: totalRequiredQty)
+    }
+
     init(name: String, sets: [LegoSet]) {
         self.id = name
         self.name = name
