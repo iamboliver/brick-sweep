@@ -1,11 +1,12 @@
 # Privacy Policy
 
-**Last updated: March 29, 2026**
+**Last updated: November 2, 2026**
 
 ## Summary
 
-BrickSweep does not collect, transmit, or store any personal data on external servers.
-There is no BrickSweep server — your data never leaves your device.
+BrickSweep has no accounts, analytics, or advertising. Your collection and your progress
+stay on your device. To look up a set, the app downloads that set's parts list, which
+sends the set number you entered to the service providing it (see below).
 
 ## Data stored on your device
 
@@ -16,11 +17,22 @@ BrickSweep stores the following data **locally on your device only**:
 - **Set and parts data** — stored in SwiftData on your device. This data is not backed up
   to any external service by BrickSweep (standard iCloud backup rules apply per your iOS settings).
 
-## Third-party services
+## Where set data comes from
 
-BrickSweep connects to the [Rebrickable API](https://rebrickable.com/api/) using the API key
-**you provide**. Rebrickable is an independent service — please review their
-[privacy policy](https://rebrickable.com/privacy/) for details on how they handle API requests.
+**Without an API key**, BrickSweep downloads set lists from `data.bricksweep.app`. These are
+static files the developer publishes daily from Rebrickable's public data, hosted on
+[Cloudflare](https://www.cloudflare.com/privacypolicy/). Each request includes the set number,
+your IP address, the time, and the app's name and version. BrickSweep stores none of this.
+Cloudflare processes it to deliver the files and to block abusive traffic; the developer can
+see aggregate traffic statistics, and the details of requests Cloudflare blocks.
+
+**With your own Rebrickable API key**, BrickSweep connects to the
+[Rebrickable API](https://rebrickable.com/api/) directly, using the key **you provide**, and
+does not contact `data.bricksweep.app`.
+
+Either way, set and part pictures load from Rebrickable's image server. Rebrickable is an
+independent service — please review their [privacy policy](https://rebrickable.com/privacy/)
+for details on how they handle requests.
 
 BrickSweep is not affiliated with or endorsed by Rebrickable, the LEGO Group, or any of their affiliates.
 

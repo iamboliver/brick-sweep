@@ -182,7 +182,7 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
                 throw APIError.setNotFound(urlString)
             }
             if httpResponse.statusCode == 429 {
-                throw APIError.rateLimited(retryAfter: retryAfter(from: httpResponse))
+                throw APIError.rateLimited(retryAfter: httpResponse.retryAfter)
             }
             let body = String(data: data, encoding: .utf8)
             throw APIError.httpError(statusCode: httpResponse.statusCode, body: body)
@@ -194,25 +194,4 @@ struct RebrickableAPIClient: RebrickableAPIClientProtocol {
             throw APIError.decodingError(underlying: error)
         }
     }
-
-    private func retryAfter(from response: HTTPURLResponse) -> TimeInterval? {
-        guard let value = response.value(forHTTPHeaderField: "Retry-After") else {
-            return nil
-        }
-        if let seconds = TimeInterval(value) {
-            return seconds
-        }
-        if let date = Self.retryAfterDateFormatter.date(from: value) {
-            return max(0, date.timeIntervalSinceNow)
-        }
-        return nil
-    }
-
-    private static let retryAfterDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "EEE',' dd MMM yyyy HH':'mm':'ss z"
-        return formatter
-    }()
 }

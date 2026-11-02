@@ -13,12 +13,32 @@ enum SetAddOutcome {
 
 struct SetImportService: Sendable {
     private let apiClient: RebrickableAPIClientProtocol
+    private let setDataClient: SetDataClientProtocol?
+    private let usesOwnAPIKey: @Sendable () -> Bool
     private let themeNameCache: ThemeNameCache
+    private let prefetchedFiles = PrefetchedSetFiles()
     private static let rebrickableBase = "https://rebrickable.com/api/v3/lego/"
 
-    init(apiClient: RebrickableAPIClientProtocol, themeNameCache: ThemeNameCache = .shared) {
+    /// - Parameters:
+    ///   - setDataClient: BrickSweep's daily data files. When nil, every import uses the API.
+    ///   - usesOwnAPIKey: True when the user has their own verified Rebrickable key; they
+    ///     keep importing straight from the API. Checked on every import.
+    init(
+        apiClient: RebrickableAPIClientProtocol,
+        setDataClient: SetDataClientProtocol? = nil,
+        usesOwnAPIKey: @escaping @Sendable () -> Bool = { true },
+        themeNameCache: ThemeNameCache = .shared
+    ) {
         self.apiClient = apiClient
+        self.setDataClient = setDataClient
+        self.usesOwnAPIKey = usesOwnAPIKey
         self.themeNameCache = themeNameCache
+    }
+
+    /// The data files, when this import should use them instead of the API.
+    private var dataFiles: SetDataClientProtocol? {
+        guard let setDataClient, !usesOwnAPIKey() else { return nil }
+        return setDataClient
     }
 
     static func normalizeSetNum(_ input: String) -> String {
@@ -54,13 +74,49 @@ struct SetImportService: Sendable {
             return Self.outcome(forExisting: existing)
         }
 
-        let setDTO = try await apiClient.fetchSet(setNum: normalized)
+        let (legoSet, file) = try await fetchNewSet(setNum: normalized)
+
+        // Check again right before inserting, with no suspension in between: another
+        // add of the same set may have inserted it while we awaited the download, and
+        // the canonical number can differ from what was typed. setNum is unique, so a
+        // second insert would merge into that record and re-import its parts on top.
+        if let existing = try existingSet(setNum: legoSet.setNum, modelContext: modelContext) {
+            return Self.outcome(forExisting: existing)
+        }
+        modelContext.insert(legoSet)
+        try modelContext.save()
+        if let file {
+            prefetchedFiles.store(file)
+        }
+        return .created(legoSet)
+    }
+
+    /// Downloads a set's details into a new, not yet inserted, record. From the data
+    /// files, also returns the whole file so loading the parts needn't download it again.
+    @MainActor
+    private func fetchNewSet(setNum: String) async throws -> (LegoSet, SetDataFile?) {
+        if let dataFiles {
+            let file = try await dataFiles.fetchSetFile(setNum: setNum)
+            let info = file.set
+            let legoSet = LegoSet(
+                setNum: info.setNum,
+                name: info.name,
+                year: info.year,
+                themeId: info.themeId,
+                themeName: info.themeName,
+                numParts: info.numParts,
+                imageUrl: info.imgUrl,
+                isImporting: true
+            )
+            return (legoSet, file)
+        }
+
+        let setDTO = try await apiClient.fetchSet(setNum: setNum)
         let themeName: String? = if let themeId = setDTO.themeId {
             await themeNameCache.topLevelName(for: themeId, apiClient: apiClient)
         } else {
             nil
         }
-
         let legoSet = LegoSet(
             setNum: setDTO.setNum,
             name: setDTO.name,
@@ -71,24 +127,14 @@ struct SetImportService: Sendable {
             imageUrl: setDTO.setImgUrl,
             isImporting: true
         )
-
-        // Check again right before inserting, with no suspension in between: another
-        // add of the same set may have inserted it while we awaited the API, and the
-        // canonical number can differ from what was typed. setNum is unique, so a
-        // second insert would merge into that record and re-import its parts on top.
-        if let existing = try existingSet(setNum: setDTO.setNum, modelContext: modelContext) {
-            return Self.outcome(forExisting: existing)
-        }
-        modelContext.insert(legoSet)
-        try modelContext.save()
-        return .created(legoSet)
+        return (legoSet, nil)
     }
 
     private static func outcome(forExisting legoSet: LegoSet) -> SetAddOutcome {
         legoSet.isImporting || legoSet.importFailed ? .needsRetry(legoSet) : .alreadyInCollection(legoSet)
     }
 
-    // MARK: - Phase 2: page-by-page parts load
+    // MARK: - Phase 2: parts load (page by page from the API, or one data file)
 
     /// Identifies one logical part row: a part number in a colour. Minifigures use
     /// LegoColorSortOrder.minifigColorId so they never collide with real colours.
@@ -173,50 +219,19 @@ struct SetImportService: Sendable {
     @MainActor
     func loadParts(into legoSet: LegoSet, setNum: String, modelContext: ModelContext) async throws {
         let merge = InventoryMerge(legoSet: legoSet, modelContext: modelContext)
-        async let minifigsFetch = apiClient.fetchSetMinifigs(setNum: setNum)
+        let prefetched = prefetchedFiles.take(setNum)
 
         do {
-            var nextURL: String? = Self.partsPageURL(setNum: setNum)
-
-            while let url = nextURL {
-                let page = try await apiClient.fetchSetPartsPage(urlString: url)
-                for partDTO in page.results where !partDTO.isSpare {
-                    let key = PartKey(partNum: partDTO.part.partNum, colorId: partDTO.color.id)
-                    merge.add(key, quantity: partDTO.quantity) {
-                        LegoPartInstance(
-                            partNum: partDTO.part.partNum,
-                            colorId: partDTO.color.id,
-                            colorName: partDTO.color.name,
-                            colorRgb: partDTO.color.rgb,
-                            name: partDTO.part.name,
-                            imageUrl: partDTO.part.partImgUrl,
-                            requiredQty: partDTO.quantity,
-                            isSpare: false,
-                            elementId: partDTO.elementId,
-                            brickLinkPartNum: partDTO.part.externalIds?.brickLink?.first,
-                            brickLinkColorId: partDTO.color.externalIds?.brickLink?.extIds?.first
-                        )
-                    }
+            if let dataFiles {
+                let file: SetDataFile
+                if let prefetched {
+                    file = prefetched
+                } else {
+                    file = try await dataFiles.fetchSetFile(setNum: setNum)
                 }
-                try modelContext.save()
-                nextURL = page.next
-            }
-
-            let minifigsDTO = try await minifigsFetch
-            for minifigDTO in minifigsDTO {
-                let key = PartKey(partNum: minifigDTO.setNum, colorId: LegoColorSortOrder.minifigColorId)
-                merge.add(key, quantity: minifigDTO.quantity) {
-                    LegoPartInstance(
-                        partNum: minifigDTO.setNum,
-                        colorId: LegoColorSortOrder.minifigColorId,
-                        colorName: "Minifigure",
-                        colorRgb: "FEC400",
-                        name: minifigDTO.setName,
-                        imageUrl: minifigDTO.setImgUrl,
-                        requiredQty: minifigDTO.quantity,
-                        isSpare: false
-                    )
-                }
+                Self.add(file, to: merge)
+            } else {
+                try await addFromAPI(setNum: setNum, to: merge, modelContext: modelContext)
             }
             merge.finish()
 
@@ -227,6 +242,86 @@ struct SetImportService: Sendable {
             legoSet.importFailed = true
             try? modelContext.save()
             throw error
+        }
+    }
+
+    @MainActor
+    private func addFromAPI(setNum: String, to merge: InventoryMerge, modelContext: ModelContext) async throws {
+        async let minifigsFetch = apiClient.fetchSetMinifigs(setNum: setNum)
+        var nextURL: String? = Self.partsPageURL(setNum: setNum)
+
+        while let url = nextURL {
+            let page = try await apiClient.fetchSetPartsPage(urlString: url)
+            for partDTO in page.results where !partDTO.isSpare {
+                let key = PartKey(partNum: partDTO.part.partNum, colorId: partDTO.color.id)
+                merge.add(key, quantity: partDTO.quantity) {
+                    LegoPartInstance(
+                        partNum: partDTO.part.partNum,
+                        colorId: partDTO.color.id,
+                        colorName: partDTO.color.name,
+                        colorRgb: partDTO.color.rgb,
+                        name: partDTO.part.name,
+                        imageUrl: partDTO.part.partImgUrl,
+                        requiredQty: partDTO.quantity,
+                        isSpare: false,
+                        elementId: partDTO.elementId,
+                        brickLinkPartNum: partDTO.part.externalIds?.brickLink?.first,
+                        brickLinkColorId: partDTO.color.externalIds?.brickLink?.extIds?.first
+                    )
+                }
+            }
+            try modelContext.save()
+            nextURL = page.next
+        }
+
+        for minifigDTO in try await minifigsFetch {
+            Self.addMinifig(
+                figNum: minifigDTO.setNum, name: minifigDTO.setName,
+                imageUrl: minifigDTO.setImgUrl, quantity: minifigDTO.quantity, to: merge
+            )
+        }
+    }
+
+    /// Applies the same rules as the API path: spares dropped, rows for one part and
+    /// colour summed, one row per minifigure. The file has no BrickLink colour IDs;
+    /// exports fall back to the bundled colour mapping.
+    @MainActor
+    private static func add(_ file: SetDataFile, to merge: InventoryMerge) {
+        for part in file.parts where !part.isSpare {
+            merge.add(PartKey(partNum: part.partNum, colorId: part.colorId), quantity: part.quantity) {
+                LegoPartInstance(
+                    partNum: part.partNum,
+                    colorId: part.colorId,
+                    colorName: part.colorName,
+                    colorRgb: part.rgb,
+                    name: part.name,
+                    imageUrl: part.imgUrl,
+                    requiredQty: part.quantity,
+                    isSpare: false,
+                    elementId: part.elementId,
+                    brickLinkPartNum: part.bricklinkPartNum
+                )
+            }
+        }
+        for minifig in file.minifigs {
+            addMinifig(figNum: minifig.figNum, name: minifig.name, imageUrl: minifig.imgUrl, quantity: minifig.quantity, to: merge)
+        }
+    }
+
+    @MainActor
+    private static func addMinifig(figNum: String, name: String, imageUrl: String?, quantity: Int, to merge: InventoryMerge) {
+        let key = PartKey(partNum: figNum, colorId: LegoColorSortOrder.minifigColorId)
+        merge.add(key, quantity: quantity) {
+            LegoPartInstance(
+                partNum: figNum,
+                colorId: LegoColorSortOrder.minifigColorId,
+                colorName: "Minifigure",
+                colorRgb: "FEC400",
+                name: name,
+                imageUrl: imageUrl,
+                requiredQty: quantity,
+                isSpare: false
+            )
         }
     }
 
@@ -244,10 +339,16 @@ struct SetImportService: Sendable {
     func refreshThemeMetadata(for sets: [LegoSet], modelContext: ModelContext) async {
         for legoSet in sets where legoSet.themeId == nil || legoSet.themeName == nil {
             do {
-                let setDTO = try await apiClient.fetchSet(setNum: legoSet.setNum)
-                legoSet.themeId = setDTO.themeId
-                if let themeId = setDTO.themeId {
-                    legoSet.themeName = await themeNameCache.topLevelName(for: themeId, apiClient: apiClient)
+                if let dataFiles {
+                    let info = try await dataFiles.fetchSetFile(setNum: legoSet.setNum).set
+                    legoSet.themeId = info.themeId
+                    legoSet.themeName = info.themeName
+                } else {
+                    let setDTO = try await apiClient.fetchSet(setNum: legoSet.setNum)
+                    legoSet.themeId = setDTO.themeId
+                    if let themeId = setDTO.themeId {
+                        legoSet.themeName = await themeNameCache.topLevelName(for: themeId, apiClient: apiClient)
+                    }
                 }
                 try modelContext.save()
             } catch {
@@ -270,5 +371,22 @@ struct SetImportService: Sendable {
         case .alreadyInCollection(let set):
             return set
         }
+    }
+}
+
+/// Data files downloaded while creating a set, held until its parts load. Each is used
+/// once, so a retry downloads the file again.
+@MainActor
+private final class PrefetchedSetFiles {
+    private var files: [String: SetDataFile] = [:]
+
+    nonisolated init() {}
+
+    func store(_ file: SetDataFile) {
+        files[file.set.setNum] = file
+    }
+
+    func take(_ setNum: String) -> SetDataFile? {
+        files.removeValue(forKey: setNum)
     }
 }
