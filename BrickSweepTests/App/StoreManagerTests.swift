@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import BrickSweep
 
@@ -129,11 +130,58 @@ struct StoreManagerTests {
         }
     }
 
+    @Test("A failed founder check can be retried, then unlocks Pro")
+    func retryAfterFailedCheck() async {
+        await withDefaults { defaults in
+            let state = State()
+            state.version = "offline"
+            let store = StoreManager(defaults: defaults,
+                appTransactionProvider: {
+                    if state.version == "offline" { throw URLError(.notConnectedToInternet) }
+                    return .verified(originalAppVersion: state.version)
+                },
+                purchasedProProvider: { false }, startsAutomatically: false)
+            store.foundingUserOverride = nil
+            await store.refreshPurchaseStatus()
+            #expect(!store.hasCheckedFoundingStatus)
+            #expect(!store.isPro)
+
+            state.version = "6"
+            await store.refreshPurchaseStatus()
+            #expect(store.hasCheckedFoundingStatus)
+            #expect(store.isPro)
+        }
+    }
+
+    @Test("Restore tells a founder without a purchase why they have Pro")
+    func restoreMessages() {
+        #expect(StoreManager.restoreMessage(hasPurchasedPro: true, isFoundingUser: true) == "Purchases restored.")
+        #expect(StoreManager.restoreMessage(hasPurchasedPro: true, isFoundingUser: false) == "Purchases restored.")
+        #expect(StoreManager.restoreMessage(hasPurchasedPro: false, isFoundingUser: true).contains("founding member"))
+        #expect(StoreManager.restoreMessage(hasPurchasedPro: false, isFoundingUser: false).contains("No previous"))
+    }
+
     @Test("The shipped app build must be newer than the founding build (bs-91d)")
     func releaseBuildNumber() throws {
         let build = try #require(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String)
         let buildNumber = try #require(Int(build))
         #expect(buildNumber > AppConstants.lastFoundingBuild,
                 "bs-91d must bump the app build above 6 before shipping founder access")
+    }
+}
+
+@Suite("Recheck Pro access on returning to the app")
+struct ForegroundRefreshTriggerTests {
+    @Test("Returning from the background refreshes once, through inactive as iOS reports it")
+    func returnFromBackground() {
+        var trigger = ForegroundRefreshTrigger()
+        let phases: [ScenePhase] = [.active, .inactive, .background, .inactive, .active, .inactive, .active]
+        #expect(phases.map { trigger.shouldRefresh(after: $0) } == [false, false, false, false, true, false, false])
+    }
+
+    @Test("A brief interruption without going to the background doesn't refresh")
+    func briefInterruption() {
+        var trigger = ForegroundRefreshTrigger()
+        #expect(![ScenePhase.inactive, .active].contains { trigger.shouldRefresh(after: $0) })
     }
 }

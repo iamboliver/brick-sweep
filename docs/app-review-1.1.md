@@ -2,7 +2,7 @@
 
 Users who first downloaded BrickSweep 1.0 receive BrickSweep Pro at no cost, permanently, as a thank-you for being here early. This unlocks unlimited sets and export. Existing Pro purchases continue to work. New users retain the five-set free tier and can buy the existing one-time Pro purchase.
 
-Eligibility uses the verified StoreKit 2 AppTransaction originalAppVersion, parsed as a whole-number iOS build and compared to the last founding build, `6` (eligible when at or below `6`). Version 1.0 shipped as build `6`; noninteger values are not eligible. The App Store install record preserves eligibility across reinstalls and new devices. A verified result is cached for offline launches and checked again at launch, foreground activation, and Restore Purchases. Settings identifies eligible users as founding members.
+Eligibility uses the verified StoreKit 2 AppTransaction originalAppVersion, parsed as a whole-number iOS build and compared to the last founding build, `6` (eligible when at or below `6`). Version 1.0 shipped as build `6`; noninteger values are not eligible. The App Store install record preserves eligibility across reinstalls and new devices. A verified result is cached for offline launches and checked again at launch, on returning to the app from the background, when the paywall opens, and on Restore Purchases. Settings identifies eligible users as founding members.
 
 ## Release validation
 

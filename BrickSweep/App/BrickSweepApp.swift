@@ -6,14 +6,15 @@ struct BrickSweepApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var navigator = AppNavigator()
     @State private var storeManager = StoreManager()
+    @State private var foregroundRefresh = ForegroundRefreshTrigger()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(navigator)
                 .environment(storeManager)
-                .onChange(of: scenePhase) { oldPhase, phase in
-                    if oldPhase == .background && phase == .active {
+                .onChange(of: scenePhase) { _, phase in
+                    if foregroundRefresh.shouldRefresh(after: phase) {
                         Task { await storeManager.refreshPurchaseStatus() }
                     }
                 }

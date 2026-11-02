@@ -158,9 +158,19 @@ final class StoreManager {
             purchaseError = "Could not contact the App Store to restore purchases. Please try again."
         }
         await refreshPurchaseStatus()
-        purchaseMessage = isPro
-            ? "Purchases restored."
-            : "No previous BrickSweep Pro purchase was found for this Apple ID."
+        purchaseMessage = Self.restoreMessage(hasPurchasedPro: hasPurchasedPro, isFoundingUser: isFoundingUser)
+    }
+
+    /// What Restore Purchases reports. A founder who never bought Pro has nothing to
+    /// restore, so they're told why they have Pro instead of "Purchases restored."
+    static func restoreMessage(hasPurchasedPro: Bool, isFoundingUser: Bool) -> String {
+        if hasPurchasedPro {
+            "Purchases restored."
+        } else if isFoundingUser {
+            "No purchase to restore. You already have Pro free as a founding member."
+        } else {
+            "No previous BrickSweep Pro purchase was found for this Apple ID."
+        }
     }
 
     // MARK: - Transaction listener
