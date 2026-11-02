@@ -12,8 +12,8 @@ struct BrickSweepApp: App {
             ContentView()
                 .environment(navigator)
                 .environment(storeManager)
-                .onChange(of: scenePhase) { _, phase in
-                    if phase == .active {
+                .onChange(of: scenePhase) { oldPhase, phase in
+                    if oldPhase == .background && phase == .active {
                         Task { await storeManager.refreshPurchaseStatus() }
                     }
                 }

@@ -39,6 +39,7 @@ final class StoreManager {
     // MARK: - Private state
 
     private var transactionListener: Task<Void, Never>?
+    private var purchaseRefreshTask: Task<Void, Never>?
 
     // MARK: - Init / deinit
 
@@ -176,13 +177,21 @@ final class StoreManager {
     // MARK: - Helpers
 
     func refreshPurchaseStatus() async {
-        async let foundingCheck: Void = refreshFoundingStatus()
-        hasPurchasedPro = await purchasedProProvider()
-        await foundingCheck
+        if let purchaseRefreshTask {
+            await purchaseRefreshTask.value
+            return
+        }
+        let task = Task { @MainActor in
+            async let foundingCheck: Void = refreshFoundingStatus()
+            hasPurchasedPro = await purchasedProProvider()
+            await foundingCheck
+        }
+        purchaseRefreshTask = task
+        await task.value
+        purchaseRefreshTask = nil
     }
 
     func refreshFoundingStatus() async {
-        defer { hasCheckedFoundingStatus = true }
         do {
             let record = try await appTransactionProvider()
             // An explicit verification failure cannot confer founder access.
@@ -193,8 +202,10 @@ final class StoreManager {
                 verifiedFoundingUser = false
             }
             defaults.set(verifiedFoundingUser, forKey: AppConstants.UserDefaultsKeys.verifiedFoundingUser)
+            hasCheckedFoundingStatus = true
         } catch {
             // Keep the last verified result when StoreKit is unavailable/offline.
+            hasCheckedFoundingStatus = defaults.object(forKey: AppConstants.UserDefaultsKeys.verifiedFoundingUser) != nil
         }
     }
 

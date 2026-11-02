@@ -13,13 +13,19 @@ struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        Group {
-            if storeManager.isPro {
-                Color.clear
-            } else if !storeManager.hasCheckedFoundingStatus {
-                ProgressView("Checking Pro access…")
-            } else {
-                purchaseContent
+        NavigationStack {
+            Group {
+                if !storeManager.hasCheckedFoundingStatus {
+                    ProgressView("Checking Pro access…")
+                } else {
+                    purchaseContent
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(dismissLabel) { dismiss() }
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .onChange(of: storeManager.isPro, initial: true) { _, isPro in
@@ -30,8 +36,7 @@ struct PaywallView: View {
     }
 
     private var purchaseContent: some View {
-        NavigationStack {
-            ScrollView {
+        ScrollView {
                 VStack(spacing: AppTheme.Spacing.xl) {
 
                     // MARK: Header
@@ -163,13 +168,6 @@ struct PaywallView: View {
                         .padding(.bottom, AppTheme.Spacing.xl)
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(dismissLabel) { dismiss() }
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
     }
 
     // MARK: - Context-specific copy

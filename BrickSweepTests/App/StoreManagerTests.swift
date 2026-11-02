@@ -74,7 +74,7 @@ struct StoreManagerTests {
             store.foundingUserOverride = nil
             await store.refreshPurchaseStatus()
             #expect(!store.isPro)
-            #expect(store.hasCheckedFoundingStatus)
+            #expect(!store.hasCheckedFoundingStatus)
         }
     }
 
