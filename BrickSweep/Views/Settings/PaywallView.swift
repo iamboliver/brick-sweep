@@ -13,6 +13,23 @@ struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        Group {
+            if storeManager.isPro {
+                Color.clear
+            } else if !storeManager.hasCheckedFoundingStatus {
+                ProgressView("Checking Pro access…")
+            } else {
+                purchaseContent
+            }
+        }
+        .onChange(of: storeManager.isPro, initial: true) { _, isPro in
+            if isPro { dismiss() }
+        }
+        .presentationDetents(context == .setLimit ? [.large] : [.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var purchaseContent: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: AppTheme.Spacing.xl) {
@@ -153,8 +170,6 @@ struct PaywallView: View {
                 }
             }
         }
-        .presentationDetents(context == .setLimit ? [.large] : [.medium, .large])
-        .presentationDragIndicator(.visible)
     }
 
     // MARK: - Context-specific copy

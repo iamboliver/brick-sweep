@@ -53,7 +53,9 @@ struct SettingsTabView: View {
                 } header: {
                     Label("BrickSweep Pro", systemImage: "crown.fill")
                 } footer: {
-                    if storeManager.isPro {
+                    if storeManager.isFoundingUser {
+                        Text("Founding member: Pro unlocked. Thank you for being here early.")
+                    } else if storeManager.isPro {
                         Text("You have BrickSweep Pro. Thank you for your support!")
                     } else {
                         Text("Unlock unlimited sets and BrickLink export. One-time purchase — no subscription, ever.")
