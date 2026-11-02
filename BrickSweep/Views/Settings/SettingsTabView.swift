@@ -1,25 +1,13 @@
 import SwiftUI
 
 struct SettingsTabView: View {
-    private static let keychainKey = AppConstants.Keychain.apiKey
-
     @Environment(StoreManager.self) private var storeManager
     @Environment(\.openURL) private var openURL
     @FocusState private var isFieldFocused: Bool
-    @State private var apiKey: String = ""
-    @State private var showSavedConfirmation = false
-    @State private var isTestingKey = false
-    @State private var testResult: TestResult?
+    @State private var keySettings = APIKeySettingsViewModel()
     @State private var showPaywall = false
     @State private var showAPIKeyHelp = false
     @State private var showFeedbackFallback = false
-    @State private var lastVerifiedAPIKey: String?
-    @State private var hasStoredKey = false
-
-    private enum TestResult {
-        case success
-        case failure(String)
-    }
 
     var body: some View {
         NavigationStack {
@@ -73,40 +61,28 @@ struct SettingsTabView: View {
                 }
 
                 Section {
-                    SecureField("Rebrickable API Key", text: $apiKey)
+                    SecureField("Rebrickable API Key", text: $keySettings.apiKey)
                         .focused($isFieldFocused)
                         .textContentType(.password)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
-                        .onChange(of: apiKey) { _, newValue in
-                            guard let lastVerifiedAPIKey, newValue != lastVerifiedAPIKey else { return }
-                            UserDefaults.standard.set(false, forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
-                            testResult = nil
-                        }
 
                     Button("Save API Key") {
                         isFieldFocused = false
-                        let success = KeychainHelper.save(key: Self.keychainKey, value: apiKey)
-                        if success {
-                            hasStoredKey = true
-                            if apiKey != lastVerifiedAPIKey {
-                                UserDefaults.standard.set(false, forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
-                                testResult = nil
-                            }
-                            showSavedConfirmation = true
-                        }
+                        keySettings.save()
                     }
-                    .disabled(apiKey.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(!keySettings.canSubmitKey)
 
                     Button {
-                        testAPIKey()
+                        isFieldFocused = false
+                        keySettings.test()
                     } label: {
                         HStack {
                             Text("Test Connection")
                             Spacer()
-                            if isTestingKey {
+                            if keySettings.isTesting {
                                 ProgressView()
-                            } else if let result = testResult {
+                            } else if let result = keySettings.testResult {
                                 switch result {
                                 case .success:
                                     Image(systemName: "checkmark.circle.fill")
@@ -118,11 +94,12 @@ struct SettingsTabView: View {
                             }
                         }
                     }
-                    .disabled(apiKey.trimmingCharacters(in: .whitespaces).isEmpty || isTestingKey)
+                    .disabled(!keySettings.canSubmitKey || keySettings.isTesting)
 
-                    if hasStoredKey {
+                    if keySettings.hasStoredKey {
                         Button("Remove API Key", role: .destructive) {
-                            removeAPIKey()
+                            isFieldFocused = false
+                            keySettings.remove()
                         }
                     }
 
@@ -134,7 +111,10 @@ struct SettingsTabView: View {
                 } header: {
                     Label("Your Own Rebrickable Key", systemImage: "key.fill")
                 } footer: {
-                    if case .failure(let message) = testResult {
+                    if let message = keySettings.removalError {
+                        Text(message)
+                            .foregroundStyle(.red)
+                    } else if case .failure(let message) = keySettings.testResult {
                         Text(message)
                             .foregroundStyle(.red)
                     } else {
@@ -218,7 +198,7 @@ struct SettingsTabView: View {
             .sheet(isPresented: $showAPIKeyHelp) {
                 APIKeyHelpView()
             }
-            .alert("API Key Saved", isPresented: $showSavedConfirmation) {
+            .alert("API Key Saved", isPresented: $keySettings.showSavedConfirmation) {
                 Button("OK", role: .cancel) {}
             }
             .alert("Email Unavailable", isPresented: $showFeedbackFallback) {
@@ -227,70 +207,10 @@ struct SettingsTabView: View {
                 Text("Please email \(AppConstants.Support.feedbackEmail) with your feedback.")
             }
             .onAppear {
-                if let stored = KeychainHelper.read(key: Self.keychainKey) {
-                    apiKey = stored
-                    hasStoredKey = true
-                }
-                if UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey) {
-                    lastVerifiedAPIKey = apiKey
-                    testResult = .success
-                }
+                keySettings.load()
             }
         }
         .tint(.blue)
-    }
-
-    private func testAPIKey() {
-        isTestingKey = true
-        testResult = nil
-        // Save the current key first so the API client picks it up
-        if KeychainHelper.save(key: Self.keychainKey, value: apiKey) {
-            hasStoredKey = true
-        }
-        let client = RebrickableAPIClient(apiKeyProvider: { APIKeyProvider.getAPIKey() })
-        Task {
-            do {
-                // Fetch color 0 (Black) as a lightweight connectivity test
-                _ = try await client.fetchColor(id: 0)
-                lastVerifiedAPIKey = apiKey
-                UserDefaults.standard.set(true, forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
-                testResult = .success
-            } catch {
-                UserDefaults.standard.set(false, forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
-                testResult = .failure(apiKeyTestFailureMessage(for: error))
-            }
-            isTestingKey = false
-        }
-    }
-
-    /// Back to BrickSweep's data files for future imports. Sets already imported keep
-    /// their parts and progress.
-    private func removeAPIKey() {
-        isFieldFocused = false
-        _ = KeychainHelper.delete(key: Self.keychainKey)
-        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
-        lastVerifiedAPIKey = nil
-        testResult = nil
-        apiKey = ""
-        hasStoredKey = false
-    }
-
-    private func apiKeyTestFailureMessage(for error: Error) -> String {
-        if let apiError = error as? APIError {
-            switch apiError {
-            case .missingAPIKey:
-                return "Paste your Rebrickable API key, then tap Save API Key."
-            case .httpError(let statusCode, _) where statusCode == 401 || statusCode == 403:
-                return "That API key was not accepted. Copy it again from Rebrickable, paste it here, then tap Save API Key and Test Connection."
-            case .rateLimited:
-                return "Rebrickable is temporarily rate limiting requests. Wait a minute, then try again."
-            case .networkError:
-                return "BrickSweep could not reach Rebrickable. Check your connection, then try again."
-            default:
-                break
-            }
-        }
-        return "BrickSweep could not verify this API key. Check it was copied correctly, then try again."
     }
 
     private func sendFeedback() {
