@@ -35,13 +35,16 @@ struct SetImportService: Sendable {
 
     // MARK: - Phase 1: create the set record and return immediately
 
+    /// Finds a stored set by number, ignoring letter case ("abc-1" finds "ABC-1").
     @MainActor
     func existingSet(setNum: String, modelContext: ModelContext) throws -> LegoSet? {
         let normalized = Self.normalizeSetNum(setNum)
         let descriptor = FetchDescriptor<LegoSet>(
-            predicate: #Predicate { $0.setNum == normalized }
+            predicate: #Predicate { $0.setNum.localizedStandardContains(normalized) }
         )
-        return try modelContext.fetch(descriptor).first
+        return try modelContext.fetch(descriptor).first {
+            $0.setNum.caseInsensitiveCompare(normalized) == .orderedSame
+        }
     }
 
     @MainActor
@@ -52,13 +55,6 @@ struct SetImportService: Sendable {
         }
 
         let setDTO = try await apiClient.fetchSet(setNum: normalized)
-
-        // Rebrickable's canonical number can differ from what was typed (e.g. "abc-1"
-        // vs "ABC-1"). setNum is unique, so inserting a second record would merge into
-        // the existing one and its parts would be imported again on top.
-        if let existing = try existingSet(setNum: setDTO.setNum, modelContext: modelContext) {
-            return Self.outcome(forExisting: existing)
-        }
         let themeName: String? = if let themeId = setDTO.themeId {
             await themeNameCache.topLevelName(for: themeId, apiClient: apiClient)
         } else {
@@ -75,6 +71,14 @@ struct SetImportService: Sendable {
             imageUrl: setDTO.setImgUrl,
             isImporting: true
         )
+
+        // Check again right before inserting, with no suspension in between: another
+        // add of the same set may have inserted it while we awaited the API, and the
+        // canonical number can differ from what was typed. setNum is unique, so a
+        // second insert would merge into that record and re-import its parts on top.
+        if let existing = try existingSet(setNum: setDTO.setNum, modelContext: modelContext) {
+            return Self.outcome(forExisting: existing)
+        }
         modelContext.insert(legoSet)
         try modelContext.save()
         return .created(legoSet)
@@ -93,31 +97,86 @@ struct SetImportService: Sendable {
         let colorId: Int
     }
 
-    /// Loads the set's full inventory, replacing any parts already stored for it, so
-    /// calling it again can never leave duplicate rows.
+    /// Merges a downloaded inventory into the rows already stored for a set.
+    ///
+    /// Rows for the same part and colour are reused, so missing and replaced counts
+    /// survive a retry. Stored rows the new inventory no longer contains are removed
+    /// only once the download completes, so a failed retry loses nothing. Extra copies
+    /// of one part (left by the 1.0 duplicate-import bug) are folded into a single row.
     @MainActor
-    func loadParts(into legoSet: LegoSet, setNum: String, modelContext: ModelContext) async throws {
-        if !legoSet.parts.isEmpty {
-            legoSet.parts.forEach { modelContext.delete($0) }
-            try modelContext.save()
+    private final class InventoryMerge {
+        private let legoSet: LegoSet
+        private let modelContext: ModelContext
+        private var reusable: [PartKey: LegoPartInstance] = [:]
+        private var seen: [PartKey: LegoPartInstance] = [:]
+        /// New quantities for reused rows, applied when the download completes so a
+        /// failed retry leaves those rows exactly as they were.
+        private var reusedQuantities: [PartKey: Int] = [:]
+
+        init(legoSet: LegoSet, modelContext: ModelContext) {
+            self.legoSet = legoSet
+            self.modelContext = modelContext
+            for row in legoSet.parts {
+                let key = PartKey(partNum: row.partNum, colorId: row.colorId)
+                if let kept = reusable[key] {
+                    kept.missingQty += row.missingQty
+                    kept.replacedQty += row.replacedQty
+                    modelContext.delete(row)
+                } else {
+                    reusable[key] = row
+                }
+            }
         }
 
+        func add(_ key: PartKey, quantity: Int, makeRow: () -> LegoPartInstance) {
+            if let row = seen[key] {
+                if reusedQuantities[key] != nil {
+                    reusedQuantities[key, default: 0] += quantity
+                } else {
+                    row.requiredQty += quantity
+                }
+            } else if let reused = reusable.removeValue(forKey: key) {
+                seen[key] = reused
+                reusedQuantities[key] = quantity
+            } else {
+                let row = makeRow()
+                row.set = legoSet
+                modelContext.insert(row)
+                seen[key] = row
+            }
+        }
+
+        /// Call once every page has downloaded.
+        func finish() {
+            for (key, quantity) in reusedQuantities {
+                seen[key]?.requiredQty = quantity
+            }
+            for row in seen.values {
+                row.missingQty = min(row.missingQty, row.requiredQty)
+                row.replacedQty = min(row.replacedQty, row.requiredQty)
+            }
+            reusable.values.forEach { modelContext.delete($0) }
+            reusable.removeAll()
+        }
+    }
+
+    /// Loads the set's full inventory, merging into any rows already stored for it:
+    /// calling it again never duplicates rows and never discards the user's counts
+    /// for parts that are still in the inventory.
+    @MainActor
+    func loadParts(into legoSet: LegoSet, setNum: String, modelContext: ModelContext) async throws {
+        let merge = InventoryMerge(legoSet: legoSet, modelContext: modelContext)
         async let minifigsFetch = apiClient.fetchSetMinifigs(setNum: setNum)
 
         do {
-            // One row per part and colour, summed across pages and sub-inventories
-            var seen: [PartKey: LegoPartInstance] = [:]
-
             var nextURL: String? = Self.partsPageURL(setNum: setNum)
 
             while let url = nextURL {
                 let page = try await apiClient.fetchSetPartsPage(urlString: url)
                 for partDTO in page.results where !partDTO.isSpare {
                     let key = PartKey(partNum: partDTO.part.partNum, colorId: partDTO.color.id)
-                    if let existing = seen[key] {
-                        existing.requiredQty += partDTO.quantity
-                    } else {
-                        let part = LegoPartInstance(
+                    merge.add(key, quantity: partDTO.quantity) {
+                        LegoPartInstance(
                             partNum: partDTO.part.partNum,
                             colorId: partDTO.color.id,
                             colorName: partDTO.color.name,
@@ -130,9 +189,6 @@ struct SetImportService: Sendable {
                             brickLinkPartNum: partDTO.part.externalIds?.brickLink?.first,
                             brickLinkColorId: partDTO.color.externalIds?.brickLink?.extIds?.first
                         )
-                        part.set = legoSet
-                        modelContext.insert(part)
-                        seen[key] = part
                     }
                 }
                 try modelContext.save()
@@ -142,10 +198,8 @@ struct SetImportService: Sendable {
             let minifigsDTO = try await minifigsFetch
             for minifigDTO in minifigsDTO {
                 let key = PartKey(partNum: minifigDTO.setNum, colorId: LegoColorSortOrder.minifigColorId)
-                if let existing = seen[key] {
-                    existing.requiredQty += minifigDTO.quantity
-                } else {
-                    let minifig = LegoPartInstance(
+                merge.add(key, quantity: minifigDTO.quantity) {
+                    LegoPartInstance(
                         partNum: minifigDTO.setNum,
                         colorId: LegoColorSortOrder.minifigColorId,
                         colorName: "Minifigure",
@@ -155,12 +209,9 @@ struct SetImportService: Sendable {
                         requiredQty: minifigDTO.quantity,
                         isSpare: false
                     )
-                    minifig.set = legoSet
-                    modelContext.insert(minifig)
-                    seen[key] = minifig
                 }
             }
-            try modelContext.save()
+            merge.finish()
 
             legoSet.isImporting = false
             legoSet.importFailed = false
@@ -172,7 +223,7 @@ struct SetImportService: Sendable {
         }
     }
 
-    // MARK: - Retry: re-import from scratch (loadParts clears existing parts)
+    // MARK: - Retry: download again, keeping counts for parts still in the inventory
 
     @MainActor
     func retryLoadParts(into legoSet: LegoSet, modelContext: ModelContext) async throws {

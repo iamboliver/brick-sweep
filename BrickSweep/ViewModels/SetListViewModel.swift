@@ -40,12 +40,20 @@ final class SetListViewModel {
         await loadSet(setNum: AppConstants.Support.exampleSetNumber, modelContext: modelContext)
     }
 
-    /// Whether this set number is already in the collection, so adding it should not
-    /// count against the free-tier limit.
+    /// Whether this set number is already in the collection (ignoring letter case).
     func isInCollection(setNum: String, modelContext: ModelContext) -> Bool {
         let input = setNum.trimmingCharacters(in: .whitespaces)
         guard !input.isEmpty else { return false }
         return (try? importService.existingSet(setNum: input, modelContext: modelContext)) != nil
+    }
+
+    /// Whether adding the typed set should show the paywall. A set that's already in
+    /// the collection doesn't use up a free slot: adding it explains it's already
+    /// there, or resumes a failed import.
+    func shouldShowPaywall(setCount: Int, isPro: Bool, modelContext: ModelContext) -> Bool {
+        setCount >= AppConstants.IAP.freeTierSetLimit
+            && !isPro
+            && !isInCollection(setNum: setNumInput, modelContext: modelContext)
     }
 
     private func loadSet(setNum: String, modelContext: ModelContext, clearInputOnSuccess: Bool = false) async {
@@ -74,6 +82,11 @@ final class SetListViewModel {
                     try await importService.loadParts(into: set, setNum: set.setNum, modelContext: modelContext)
                 }
             case .needsRetry(let set):
+                // Another add may have finished this import since createSet looked.
+                guard set.isImporting || set.importFailed else {
+                    existingSetNotice = ExistingSetNotice(legoSet: set, isDownloading: false)
+                    break
+                }
                 startedSet = set
                 try await runImport(of: set) {
                     try await importService.retryLoadParts(into: set, modelContext: modelContext)
