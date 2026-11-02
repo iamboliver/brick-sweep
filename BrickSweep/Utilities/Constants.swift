@@ -1,7 +1,7 @@
 import Foundation
 
 enum AppConstants {
-    static let foundingBuildNumber = "1"
+    static let lastFoundingBuild = 6
     enum Keychain {
         static let apiKey = "rebrickable_api_key"
         static let userToken = "rebrickable_user_token"

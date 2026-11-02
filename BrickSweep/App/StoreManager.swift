@@ -186,7 +186,12 @@ final class StoreManager {
         do {
             let record = try await appTransactionProvider()
             // An explicit verification failure cannot confer founder access.
-            verifiedFoundingUser = record == .verified(originalAppVersion: AppConstants.foundingBuildNumber)
+            if case .verified(let originalAppVersion) = record,
+               let build = Int(originalAppVersion) {
+                verifiedFoundingUser = build <= AppConstants.lastFoundingBuild
+            } else {
+                verifiedFoundingUser = false
+            }
             defaults.set(verifiedFoundingUser, forKey: AppConstants.UserDefaultsKeys.verifiedFoundingUser)
         } catch {
             // Keep the last verified result when StoreKit is unavailable/offline.

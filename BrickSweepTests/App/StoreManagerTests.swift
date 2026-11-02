@@ -8,7 +8,7 @@ struct StoreManagerTests {
     @MainActor
     private final class State {
         var purchased = false
-        var version = "1"
+        var version = "6"
     }
 
     private func withDefaults(_ body: (UserDefaults) async throws -> Void) async rethrows {
@@ -18,7 +18,7 @@ struct StoreManagerTests {
         try await body(defaults)
     }
 
-    @Test("Only the verified founding build unlocks Pro", arguments: ["1", "2", "10", "1.0", ""])
+    @Test("Only verified builds through 6 unlock Pro", arguments: ["1", "5", "6", "7", "10", "1.0", "6.0", "", "invalid"])
     func originalBuild(_ version: String) async {
         await withDefaults { defaults in
             let store = StoreManager(defaults: defaults,
@@ -26,10 +26,10 @@ struct StoreManagerTests {
                 purchasedProProvider: { false }, startsAutomatically: false)
             store.foundingUserOverride = nil
             await store.refreshPurchaseStatus()
-            #expect(store.isFoundingUser == (version == "1"))
-            #expect(store.isPro == (version == "1"))
+            #expect(store.isFoundingUser == ["1", "5", "6"].contains(version))
+            #expect(store.isPro == ["1", "5", "6"].contains(version))
             #expect(store.hasCheckedFoundingStatus)
-            #expect(defaults.bool(forKey: AppConstants.UserDefaultsKeys.verifiedFoundingUser) == (version == "1"))
+            #expect(defaults.bool(forKey: AppConstants.UserDefaultsKeys.verifiedFoundingUser) == ["1", "5", "6"].contains(version))
         }
     }
 
@@ -50,7 +50,7 @@ struct StoreManagerTests {
     func offlineCache() async {
         await withDefaults { defaults in
             let online = StoreManager(defaults: defaults,
-                appTransactionProvider: { .verified(originalAppVersion: "1") },
+                appTransactionProvider: { .verified(originalAppVersion: "6") },
                 purchasedProProvider: { false }, startsAutomatically: false)
             online.foundingUserOverride = nil
             await online.refreshPurchaseStatus()
@@ -84,7 +84,7 @@ struct StoreManagerTests {
             let state = State()
             state.purchased = purchased
             let store = StoreManager(defaults: defaults,
-                appTransactionProvider: { .verified(originalAppVersion: founder ? "1" : "2") },
+                appTransactionProvider: { .verified(originalAppVersion: founder ? "6" : "7") },
                 purchasedProProvider: { state.purchased }, startsAutomatically: false)
             store.foundingUserOverride = nil
             await store.refreshPurchaseStatus()
@@ -105,7 +105,7 @@ struct StoreManagerTests {
                 purchasedProProvider: { false }, startsAutomatically: false)
             store.foundingUserOverride = nil
             await store.refreshPurchaseStatus()
-            state.version = "2"
+            state.version = "7"
             await store.refreshPurchaseStatus()
             #expect(!store.isPro)
             #expect(!defaults.bool(forKey: AppConstants.UserDefaultsKeys.verifiedFoundingUser))
@@ -116,7 +116,7 @@ struct StoreManagerTests {
     func debugOverride() async {
         await withDefaults { defaults in
             let store = StoreManager(defaults: defaults,
-                appTransactionProvider: { .verified(originalAppVersion: "2") },
+                appTransactionProvider: { .verified(originalAppVersion: "7") },
                 purchasedProProvider: { false }, startsAutomatically: false)
             store.foundingUserOverride = true
             await store.refreshPurchaseStatus()
@@ -132,8 +132,8 @@ struct StoreManagerTests {
     @Test("The shipped app build must be newer than the founding build (bs-91d)")
     func releaseBuildNumber() throws {
         let build = try #require(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String)
-        #expect(build != AppConstants.foundingBuildNumber,
-                "bs-91d must bump the app build before shipping founder access")
-        #expect((Int(build) ?? 0) > 1)
+        let buildNumber = try #require(Int(build))
+        #expect(buildNumber > AppConstants.lastFoundingBuild,
+                "bs-91d must bump the app build above 6 before shipping founder access")
     }
 }
