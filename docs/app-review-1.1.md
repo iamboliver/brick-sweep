@@ -6,7 +6,7 @@ Eligibility uses the verified StoreKit 2 AppTransaction originalAppVersion, pars
 
 ## Release validation
 
-The bs-91d version bump must land before release: the shipped CFBundleVersion must be greater than `6` (bs-91d sets build `7`). The StoreManager release-build test deliberately fails if this prerequisite is absent.
+The shipped CFBundleVersion must remain greater than `6`. The bs-91d version bump sets version 1.1 to build `7`; the StoreManager release-build test guards this requirement.
 
 On a device with an App Store 1.0 install, update to 1.1 and verify the founding-member message, unlimited sets, export access without a paywall, and access after relaunching offline. Verify reinstalls and a second device with the same Apple ID. A fresh 1.1 install must retain the five-set limit and normal export paywall. Also verify an existing Pro buyer retains access.
 
