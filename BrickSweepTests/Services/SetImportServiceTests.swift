@@ -264,8 +264,18 @@ struct SetImportServiceTests {
         #expect(rows["3002"]?.missingQty == 0)
     }
 
-    @Test("Saved counts are capped when a part's quantity drops")
-    func retryCapsCountsToNewQuantity() async throws {
+    @Test(
+        "When a part's quantity drops, missing + replaced is capped to it, missing first",
+        arguments: [
+            // (stored missing, stored replaced, expected missing, expected replaced) for 4 -> 2 pieces
+            (3, 1, 2, 0),
+            (1, 3, 1, 1),
+            (0, 4, 0, 2),
+            (1, 0, 1, 0),
+        ]
+    )
+    func retryCapsCombinedCountsToNewQuantity(counts: (Int, Int, Int, Int)) async throws {
+        let (storedMissing, storedReplaced, expectedMissing, expectedReplaced) = counts
         let firstURL = SetImportService.partsPageURL(setNum: "60272-1")
         let apiClient = MockRebrickableAPIClient(
             setDTO: Self.setDTO,
@@ -273,14 +283,46 @@ struct SetImportServiceTests {
         )
         let harness = try TestHarness(apiClient: apiClient)
         let set = try Self.insertSet(
-            setNum: "60272-1", parts: [.init("3001", 1, 4, missing: 3, replaced: 4)], importFailed: true, in: harness.context
+            setNum: "60272-1",
+            parts: [.init("3001", 1, 4, missing: storedMissing, replaced: storedReplaced)],
+            importFailed: true,
+            in: harness.context
         )
 
         try await harness.service.retryLoadParts(into: set, modelContext: harness.context)
 
-        #expect(set.parts.first?.requiredQty == 2)
-        #expect(set.parts.first?.missingQty == 2)
-        #expect(set.parts.first?.replacedQty == 2)
+        let row = try #require(set.parts.first)
+        #expect(row.requiredQty == 2)
+        #expect(row.missingQty == expectedMissing)
+        #expect(row.replacedQty == expectedReplaced)
+        #expect(row.missingQty + row.replacedQty <= row.requiredQty)
+    }
+
+    @Test("Folding duplicate rows never tracks more pieces than required, even if the retry then fails")
+    func foldedDuplicatesStayWithinRequiredQuantity() async throws {
+        let firstURL = SetImportService.partsPageURL(setNum: "60272-1")
+        let apiClient = MockRebrickableAPIClient(
+            setDTO: Self.setDTO,
+            partsPages: [:],
+            failingPartPageURLs: [firstURL]
+        )
+        let harness = try TestHarness(apiClient: apiClient)
+        let set = try Self.insertSet(
+            setNum: "60272-1",
+            parts: [.init("3001", 1, 4, missing: 3, replaced: 1), .init("3001", 1, 4, missing: 2, replaced: 2)],
+            importFailed: true,
+            in: harness.context
+        )
+
+        await #expect(throws: MockRebrickableAPIClient.MockError.pageFailed) {
+            try await harness.service.retryLoadParts(into: set, modelContext: harness.context)
+        }
+
+        let row = try #require(set.parts.first)
+        #expect(set.parts.count == 1)
+        #expect(row.missingQty == 4)
+        #expect(row.replacedQty == 0)
+        #expect(row.missingQty + row.replacedQty <= row.requiredQty)
     }
 
     @Test("A retry that fails partway leaves every stored row and count untouched")
@@ -332,6 +374,7 @@ struct SetImportServiceTests {
         #expect(set.parts.count == 1)
         #expect(set.parts.first?.requiredQty == 4)
         #expect(set.parts.first?.missingQty == 3)
+        #expect((set.parts.first?.missingQty ?? 0) + (set.parts.first?.replacedQty ?? 0) <= 4)
         #expect(try harness.context.fetchCount(FetchDescriptor<LegoPartInstance>()) == 1)
     }
 

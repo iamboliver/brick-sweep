@@ -121,6 +121,7 @@ struct SetImportService: Sendable {
                 if let kept = reusable[key] {
                     kept.missingQty += row.missingQty
                     kept.replacedQty += row.replacedQty
+                    Self.capCounts(of: kept)
                     modelContext.delete(row)
                 } else {
                     reusable[key] = row
@@ -146,15 +147,21 @@ struct SetImportService: Sendable {
             }
         }
 
+        /// Keeps missing + replaced within the required quantity. Missing wins: it
+        /// drives the shopping list and completion, while replaced is a record of
+        /// pieces already bought (and moves back to missing if a replacement is undone,
+        /// so the sum must never exceed what the set needs).
+        static func capCounts(of row: LegoPartInstance) {
+            row.missingQty = max(0, min(row.missingQty, row.requiredQty))
+            row.replacedQty = max(0, min(row.replacedQty, row.requiredQty - row.missingQty))
+        }
+
         /// Call once every page has downloaded.
         func finish() {
             for (key, quantity) in reusedQuantities {
                 seen[key]?.requiredQty = quantity
             }
-            for row in seen.values {
-                row.missingQty = min(row.missingQty, row.requiredQty)
-                row.replacedQty = min(row.replacedQty, row.requiredQty)
-            }
+            seen.values.forEach(Self.capCounts)
             reusable.values.forEach { modelContext.delete($0) }
             reusable.removeAll()
         }
