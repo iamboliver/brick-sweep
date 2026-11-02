@@ -236,22 +236,49 @@ struct SetDataImportTests {
         #expect(!set.importFailed)
     }
 
-    @Test("A failed file download marks the set for retry")
+    @Test("A failed file download marks the set for retry and keeps its rows")
     func failedDownloadMarksSetFailed() async throws {
+        let harness = try TestHarness(
+            apiClient: MockRebrickableAPIClient(setDTO: SetImportServiceTests.setDTO, partsPages: [:]),
+            setDataClient: MockSetDataClient(.failure(.unavailable(underlying: nil))),
+            usesOwnAPIKey: { false }
+        )
+        let set = try SetImportServiceTests.insertSet(
+            setNum: "60272-1",
+            parts: [.init("3001", 4, 3, missing: 2)],
+            importFailed: true,
+            in: harness.context
+        )
+
+        await #expect(throws: SetDataError.self) {
+            try await harness.service.retryLoadParts(into: set, modelContext: harness.context)
+        }
+        #expect(set.importFailed)
+        #expect(set.isImporting)
+        #expect(set.parts.map(\.missingQty) == [2])
+    }
+
+    @Test("A new set downloads its file once, and a retry downloads it again")
+    func newImportFetchesFileOnce() async throws {
         let dataClient = MockSetDataClient(.success(try Self.decoded60272()))
         let harness = try TestHarness(
             apiClient: MockRebrickableAPIClient(setDTO: SetImportServiceTests.setDTO, partsPages: [:]),
             setDataClient: dataClient,
             usesOwnAPIKey: { false }
         )
+
         let set = try requireCreated(try await harness.service.createSet(setNum: "60272", modelContext: harness.context))
         dataClient.calls.setResult(.failure(.unavailable(underlying: nil)))
+        try await harness.service.loadParts(into: set, setNum: set.setNum, modelContext: harness.context)
 
-        await #expect(throws: SetDataError.self) {
-            try await harness.service.loadParts(into: set, setNum: set.setNum, modelContext: harness.context)
-        }
-        #expect(set.importFailed)
-        #expect(set.isImporting)
+        #expect(dataClient.calls.requested == ["60272-1"])
+        #expect(!set.isImporting)
+        #expect(set.parts.count == 5)
+
+        dataClient.calls.setResult(.success(try Self.decoded60272()))
+        try await harness.service.retryLoadParts(into: set, modelContext: harness.context)
+
+        #expect(dataClient.calls.requested == ["60272-1", "60272-1"])
     }
 
     @Test("Theme categorising uses the file when the user has no key")
@@ -337,7 +364,7 @@ struct SetDataClientTests {
         #expect(stub.requestedPaths.count == 1)
     }
 
-    @Test("Rate limiting and server errors are retried", arguments: [429, 503])
+    @Test("Rate limiting and server errors are retried after a backoff", arguments: [429, 503])
     func retriesTransientErrors(status: Int) async throws {
         let stub = StubServer(responses: [(status, Data()), (200, Data(SetDataFileDecodingTests.file60272.utf8))])
 
@@ -345,6 +372,47 @@ struct SetDataClientTests {
 
         #expect(file.set.name == "Elite Police Boat Transport")
         #expect(stub.requestedPaths.count == 2)
+        #expect(stub.sleeps == [.seconds(1)])
+    }
+
+    @Test("A 429 is retried after the wait its Retry-After header asks for")
+    func honoursRetryAfter() async throws {
+        let stub = StubServer(replies: [
+            (429, Data(), ["Retry-After": "5"]),
+            (200, Data(SetDataFileDecodingTests.file60272.utf8), [:]),
+        ])
+
+        let file = try await stub.client.fetchSetFile(setNum: "60272-1")
+
+        #expect(file.set.name == "Elite Police Boat Transport")
+        #expect(stub.sleeps == [.seconds(5)])
+    }
+
+    @Test("A Retry-After too long to wait through fails at once, saying when to try again")
+    func longRetryAfterFailsFast() async throws {
+        let stub = StubServer(replies: [(429, Data(), ["Retry-After": "60"])])
+
+        await #expect {
+            _ = try await stub.client.fetchSetFile(setNum: "60272-1")
+        } throws: { error in
+            guard case SetDataError.rateLimited(let wait) = error else { return false }
+            return wait == .seconds(60) && error.localizedDescription.contains("60 seconds")
+        }
+        #expect(stub.requestedPaths.count == 1)
+        #expect(stub.sleeps.isEmpty)
+    }
+
+    @Test("Still rate limited after every attempt reports the last Retry-After")
+    func rateLimitedThroughout() async throws {
+        let stub = StubServer(replies: Array(repeating: (429, Data(), ["Retry-After": "2"]), count: 3))
+
+        await #expect {
+            _ = try await stub.client.fetchSetFile(setNum: "60272-1")
+        } throws: { error in
+            guard case SetDataError.rateLimited(let wait) = error else { return false }
+            return wait == .seconds(2)
+        }
+        #expect(stub.sleeps == [.seconds(2), .seconds(2)])
     }
 
     @Test("Gives up after three attempts")
@@ -358,6 +426,7 @@ struct SetDataClientTests {
             return false
         }
         #expect(stub.requestedPaths.count == 3)
+        #expect(stub.sleeps == [.seconds(1), .seconds(2)])
     }
 
     @Test("An unusual set number is rejected without a request")
@@ -403,32 +472,48 @@ final class MockSetDataClient: SetDataClientProtocol {
 }
 
 /// Serves queued responses to a SetDataClient through URLProtocol. Each server has
-/// its own host, so tests running in parallel don't share responses.
+/// its own host, so tests running in parallel don't share responses. The client's
+/// waits between attempts are recorded instead of slept.
 final class StubServer: @unchecked Sendable {
+    typealias Reply = (status: Int, data: Data, headers: [String: String])
+
+    private final class SleepLog: @unchecked Sendable {
+        let lock = NSLock()
+        var sleeps: [Duration] = []
+    }
+
     let client: SetDataClient
     private let host = "stub-\(UUID().uuidString.lowercased()).test"
     private let lock = NSLock()
-    private var responses: [(Int, Data)]
+    private let sleepLog: SleepLog
+    private var replies: [Reply]
     private var _requestedPaths: [String] = []
 
     var requestedPaths: [String] { lock.withLock { _requestedPaths } }
+    var sleeps: [Duration] { sleepLog.lock.withLock { sleepLog.sleeps } }
 
-    init(responses: [(Int, Data)]) {
-        self.responses = responses
+    convenience init(responses: [(Int, Data)]) {
+        self.init(replies: responses.map { ($0.0, $0.1, [:]) })
+    }
+
+    init(replies: [Reply]) {
+        self.replies = replies
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubURLProtocol.self]
+        let sleepLog = SleepLog()
+        self.sleepLog = sleepLog
         client = SetDataClient(
             session: URLSession(configuration: configuration),
             baseURL: URL(string: "https://\(host)/v1/")!,
-            retryDelay: .zero
+            sleep: { duration in sleepLog.lock.withLock { sleepLog.sleeps.append(duration) } }
         )
         StubURLProtocol.register(self, for: host)
     }
 
-    fileprivate func respond(to request: URLRequest) -> (Int, Data) {
+    fileprivate func respond(to request: URLRequest) -> Reply {
         lock.withLock {
             _requestedPaths.append(request.url?.path ?? "")
-            return responses.isEmpty ? (500, Data()) : responses.removeFirst()
+            return replies.isEmpty ? (500, Data(), [:]) : replies.removeFirst()
         }
     }
 }
@@ -452,8 +537,8 @@ private final class StubURLProtocol: URLProtocol {
             client?.urlProtocol(self, didFailWithError: URLError(.cannotFindHost))
             return
         }
-        let (status, data) = server.respond(to: request)
-        let reply = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil) ?? response
+        let (status, data, headers) = server.respond(to: request)
+        let reply = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: headers) ?? response
         client?.urlProtocol(self, didReceive: reply, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: data)
         client?.urlProtocolDidFinishLoading(self)

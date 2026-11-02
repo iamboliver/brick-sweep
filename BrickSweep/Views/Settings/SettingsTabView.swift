@@ -172,7 +172,7 @@ struct SettingsTabView: View {
                 }
 
                 Section {
-                    Label("Your API key is stored securely in your device's Keychain and is only sent directly to rebrickable.com. This app has no server — your data never leaves your device.", systemImage: "lock.shield")
+                    Label("Without an API key, BrickSweep downloads set lists from data.bricksweep.app, which receives the set number and standard request details such as your IP address. If you add a key, it's stored in your device's Keychain and only sent to rebrickable.com. Your collection and progress stay on your device.", systemImage: "lock.shield")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     Link(destination: URL(string: "https://github.com/iamboliver/brick-sweep/blob/main/PRIVACY.md")!) {

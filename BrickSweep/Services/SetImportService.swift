@@ -16,6 +16,7 @@ struct SetImportService: Sendable {
     private let setDataClient: SetDataClientProtocol?
     private let usesOwnAPIKey: @Sendable () -> Bool
     private let themeNameCache: ThemeNameCache
+    private let prefetchedFiles = PrefetchedSetFiles()
     private static let rebrickableBase = "https://rebrickable.com/api/v3/lego/"
 
     /// - Parameters:
@@ -73,7 +74,7 @@ struct SetImportService: Sendable {
             return Self.outcome(forExisting: existing)
         }
 
-        let legoSet = try await fetchNewSet(setNum: normalized)
+        let (legoSet, file) = try await fetchNewSet(setNum: normalized)
 
         // Check again right before inserting, with no suspension in between: another
         // add of the same set may have inserted it while we awaited the download, and
@@ -84,15 +85,20 @@ struct SetImportService: Sendable {
         }
         modelContext.insert(legoSet)
         try modelContext.save()
+        if let file {
+            prefetchedFiles.store(file)
+        }
         return .created(legoSet)
     }
 
-    /// Downloads a set's details into a new, not yet inserted, record.
+    /// Downloads a set's details into a new, not yet inserted, record. From the data
+    /// files, also returns the whole file so loading the parts needn't download it again.
     @MainActor
-    private func fetchNewSet(setNum: String) async throws -> LegoSet {
+    private func fetchNewSet(setNum: String) async throws -> (LegoSet, SetDataFile?) {
         if let dataFiles {
-            let info = try await dataFiles.fetchSetFile(setNum: setNum).set
-            return LegoSet(
+            let file = try await dataFiles.fetchSetFile(setNum: setNum)
+            let info = file.set
+            let legoSet = LegoSet(
                 setNum: info.setNum,
                 name: info.name,
                 year: info.year,
@@ -102,6 +108,7 @@ struct SetImportService: Sendable {
                 imageUrl: info.imgUrl,
                 isImporting: true
             )
+            return (legoSet, file)
         }
 
         let setDTO = try await apiClient.fetchSet(setNum: setNum)
@@ -110,7 +117,7 @@ struct SetImportService: Sendable {
         } else {
             nil
         }
-        return LegoSet(
+        let legoSet = LegoSet(
             setNum: setDTO.setNum,
             name: setDTO.name,
             year: setDTO.year,
@@ -120,6 +127,7 @@ struct SetImportService: Sendable {
             imageUrl: setDTO.setImgUrl,
             isImporting: true
         )
+        return (legoSet, nil)
     }
 
     private static func outcome(forExisting legoSet: LegoSet) -> SetAddOutcome {
@@ -211,10 +219,16 @@ struct SetImportService: Sendable {
     @MainActor
     func loadParts(into legoSet: LegoSet, setNum: String, modelContext: ModelContext) async throws {
         let merge = InventoryMerge(legoSet: legoSet, modelContext: modelContext)
+        let prefetched = prefetchedFiles.take(setNum)
 
         do {
             if let dataFiles {
-                let file = try await dataFiles.fetchSetFile(setNum: setNum)
+                let file: SetDataFile
+                if let prefetched {
+                    file = prefetched
+                } else {
+                    file = try await dataFiles.fetchSetFile(setNum: setNum)
+                }
                 Self.add(file, to: merge)
             } else {
                 try await addFromAPI(setNum: setNum, to: merge, modelContext: modelContext)
@@ -357,5 +371,22 @@ struct SetImportService: Sendable {
         case .alreadyInCollection(let set):
             return set
         }
+    }
+}
+
+/// Data files downloaded while creating a set, held until its parts load. Each is used
+/// once, so a retry downloads the file again.
+@MainActor
+private final class PrefetchedSetFiles {
+    private var files: [String: SetDataFile] = [:]
+
+    nonisolated init() {}
+
+    func store(_ file: SetDataFile) {
+        files[file.set.setNum] = file
+    }
+
+    func take(_ setNum: String) -> SetDataFile? {
+        files.removeValue(forKey: setNum)
     }
 }
