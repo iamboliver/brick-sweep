@@ -18,12 +18,8 @@ struct SetsTabView: View {
             usesOwnAPIKey: { APIKeyProvider.hasVerifiedAPIKey() }
         )
     )
-    @Environment(AppNavigator.self) private var navigator
-    @State private var hasAPIKey = APIKeyProvider.getAPIKey() != nil
-    @State private var hasVerifiedAPIKey = UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
     @State private var didCleanUpStuckImports = false
     @State private var isRefreshingThemeMetadata = false
-    @State private var showAPIKeyHelp = false
     @State private var viewMode: SetsViewMode = .all
     @State private var path = NavigationPath()
 
@@ -48,42 +44,20 @@ struct SetsTabView: View {
         NavigationStack(path: $path) {
             Group {
                 if sets.isEmpty && !viewModel.isLoading {
-                    if !hasAPIKey || !hasVerifiedAPIKey {
-                        ContentUnavailableView {
-                            Label("API Key Required", systemImage: "key.fill")
-                        } description: {
-                            Text("BrickSweep uses your free Rebrickable API key to download set inventories. Add and test your key in **Settings** before importing a set.")
-                        } actions: {
-                            VStack {
-                                Button("Open Settings") {
-                                    navigator.selectedTab = .settings
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .tint(AppTheme.legoYellow)
-
-                                Button("How to get an API key") {
-                                    showAPIKeyHelp = true
-                                }
-                                .buttonStyle(.bordered)
+                    ContentUnavailableView {
+                        Label("Add Your First Set", systemImage: "square.stack.3d.up.fill")
+                    } description: {
+                        Text("Search by set number above to import your LEGO set and start tracking missing pieces.")
+                    } actions: {
+                        Button("Try Example Set") {
+                            Task {
+                                await viewModel.loadExampleSet(modelContext: modelContext)
                             }
                         }
-                        .tint(AppTheme.legoYellow)
-                    } else {
-                        ContentUnavailableView {
-                            Label("Add Your First Set", systemImage: "square.stack.3d.up.fill")
-                        } description: {
-                            Text("Search by set number above to import your LEGO set and start tracking missing pieces.")
-                        } actions: {
-                            Button("Try Example Set") {
-                                Task {
-                                    await viewModel.loadExampleSet(modelContext: modelContext)
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(AppTheme.legoYellow)
-                        }
+                        .buttonStyle(.borderedProminent)
                         .tint(AppTheme.legoYellow)
                     }
+                    .tint(AppTheme.legoYellow)
                 } else {
                     List {
                         Section {
@@ -127,16 +101,12 @@ struct SetsTabView: View {
                                             Text("Categorising sets...")
                                                 .foregroundStyle(.secondary)
                                         }
-                                    } else if hasAPIKey && hasVerifiedAPIKey {
+                                    } else {
                                         Button {
                                             refreshThemeMetadataIfNeeded()
                                         } label: {
                                             Label("Categorise Existing Sets", systemImage: "arrow.triangle.2.circlepath")
                                         }
-                                    } else {
-                                        Text("Test your API key in Settings to categorise existing sets.")
-                                            .font(AppTheme.Typography.caption)
-                                            .foregroundStyle(.secondary)
                                     }
                                 }
 
@@ -174,8 +144,6 @@ struct SetsTabView: View {
             }
             .animation(AppTheme.Animation.easeInOut, value: viewModel.isLoading)
             .onAppear {
-                hasAPIKey = APIKeyProvider.getAPIKey() != nil
-                hasVerifiedAPIKey = UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
                 if viewMode == .themes {
                     refreshThemeMetadataIfNeeded()
                 }
@@ -215,9 +183,6 @@ struct SetsTabView: View {
                     Text(error)
                 }
             }
-            .sheet(isPresented: $showAPIKeyHelp) {
-                APIKeyHelpView()
-            }
             .onChange(of: viewMode) { _, newValue in
                 if newValue == .themes {
                     refreshThemeMetadataIfNeeded()
@@ -226,11 +191,10 @@ struct SetsTabView: View {
         }
     }
 
+    /// Fills in missing themes, from the user's own key if they have one and from
+    /// BrickSweep's data files otherwise.
     private func refreshThemeMetadataIfNeeded() {
-        hasAPIKey = APIKeyProvider.getAPIKey() != nil
-        hasVerifiedAPIKey = UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
-
-        guard hasAPIKey, hasVerifiedAPIKey, hasSetsNeedingThemeMetadata, !isRefreshingThemeMetadata else {
+        guard hasSetsNeedingThemeMetadata, !isRefreshingThemeMetadata else {
             return
         }
 
