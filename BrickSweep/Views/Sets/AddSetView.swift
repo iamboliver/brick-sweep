@@ -67,7 +67,7 @@ struct AddSetView: View {
     }
 
     private func loadSetOrShowPaywall() {
-        if setCount >= AppConstants.IAP.freeTierSetLimit && !storeManager.isPro {
+        if viewModel.shouldShowPaywall(setCount: setCount, isPro: storeManager.isPro, modelContext: modelContext) {
             showSheet = false
             showPaywall = true
         } else {
