@@ -14,6 +14,7 @@ struct SettingsTabView: View {
     @State private var showAPIKeyHelp = false
     @State private var showFeedbackFallback = false
     @State private var lastVerifiedAPIKey: String?
+    @State private var hasStoredKey = false
 
     private enum TestResult {
         case success
@@ -23,89 +24,6 @@ struct SettingsTabView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    SecureField("Rebrickable API Key", text: $apiKey)
-                        .focused($isFieldFocused)
-                        .textContentType(.password)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                        .onChange(of: apiKey) { _, newValue in
-                            guard let lastVerifiedAPIKey, newValue != lastVerifiedAPIKey else { return }
-                            UserDefaults.standard.set(false, forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
-                            testResult = nil
-                        }
-
-                    Button("Save API Key") {
-                        isFieldFocused = false
-                        let success = KeychainHelper.save(key: Self.keychainKey, value: apiKey)
-                        if success {
-                            if apiKey != lastVerifiedAPIKey {
-                                UserDefaults.standard.set(false, forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
-                                testResult = nil
-                            }
-                            showSavedConfirmation = true
-                        }
-                    }
-                    .disabled(apiKey.trimmingCharacters(in: .whitespaces).isEmpty)
-
-                    Button {
-                        testAPIKey()
-                    } label: {
-                        HStack {
-                            Text("Test Connection")
-                            Spacer()
-                            if isTestingKey {
-                                ProgressView()
-                            } else if let result = testResult {
-                                switch result {
-                                case .success:
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.green)
-                                case .failure:
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(.red)
-                                }
-                            }
-                        }
-                    }
-                    .disabled(apiKey.trimmingCharacters(in: .whitespaces).isEmpty || isTestingKey)
-
-                    Button {
-                        showAPIKeyHelp = true
-                    } label: {
-                        Label("How to get an API key", systemImage: "questionmark.circle")
-                    }
-                } header: {
-                    Label("API Key", systemImage: "key.fill")
-                } footer: {
-                    if case .failure(let message) = testResult {
-                        Text(message)
-                            .foregroundStyle(.red)
-                    } else {
-                        Text("BrickSweep uses Rebrickable's free community database of 1M+ LEGO sets and parts. Not affiliated with or endorsed by Rebrickable.")
-                    }
-                }
-
-                Section {
-                    Label {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Rebrickable Sync")
-                                .font(.body)
-                            Text("Coming soon")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    } icon: {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .foregroundStyle(.secondary)
-                    }
-                    .foregroundStyle(.secondary)
-                } header: {
-                    Label("Sync", systemImage: "arrow.triangle.2.circlepath")
-                } footer: {
-                    Text("Automatic syncing of your sets to your Rebrickable collection is coming in a future update.")
-                }
-
                 Section {
                     if storeManager.isPro {
                         HStack {
@@ -154,13 +72,107 @@ struct SettingsTabView: View {
                     }
                 }
 
-                Section("Resources") {
+                Section {
+                    SecureField("Rebrickable API Key", text: $apiKey)
+                        .focused($isFieldFocused)
+                        .textContentType(.password)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .onChange(of: apiKey) { _, newValue in
+                            guard let lastVerifiedAPIKey, newValue != lastVerifiedAPIKey else { return }
+                            UserDefaults.standard.set(false, forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
+                            testResult = nil
+                        }
+
+                    Button("Save API Key") {
+                        isFieldFocused = false
+                        let success = KeychainHelper.save(key: Self.keychainKey, value: apiKey)
+                        if success {
+                            hasStoredKey = true
+                            if apiKey != lastVerifiedAPIKey {
+                                UserDefaults.standard.set(false, forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
+                                testResult = nil
+                            }
+                            showSavedConfirmation = true
+                        }
+                    }
+                    .disabled(apiKey.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                    Button {
+                        testAPIKey()
+                    } label: {
+                        HStack {
+                            Text("Test Connection")
+                            Spacer()
+                            if isTestingKey {
+                                ProgressView()
+                            } else if let result = testResult {
+                                switch result {
+                                case .success:
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                case .failure:
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.red)
+                                }
+                            }
+                        }
+                    }
+                    .disabled(apiKey.trimmingCharacters(in: .whitespaces).isEmpty || isTestingKey)
+
+                    if hasStoredKey {
+                        Button("Remove API Key", role: .destructive) {
+                            removeAPIKey()
+                        }
+                    }
+
+                    Button {
+                        showAPIKeyHelp = true
+                    } label: {
+                        Label("Why use your own key?", systemImage: "questionmark.circle")
+                    }
+                } header: {
+                    Label("Your Own Rebrickable Key", systemImage: "key.fill")
+                } footer: {
+                    if case .failure(let message) = testResult {
+                        Text(message)
+                            .foregroundStyle(.red)
+                    } else {
+                        Text("Optional. BrickSweep works without a key, using its own daily copy of Rebrickable's data. With a tested key of your own, sets download straight from Rebrickable instead, so sets added there today appear straight away.")
+                    }
+                }
+
+                Section {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Rebrickable Sync")
+                                .font(.body)
+                            Text("Coming soon")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .foregroundStyle(.secondary)
+                    }
+                    .foregroundStyle(.secondary)
+                } header: {
+                    Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                } footer: {
+                    Text("Automatic syncing of your sets to your Rebrickable collection is coming in a future update.")
+                }
+
+                Section {
                     Link(destination: URL(string: "https://rebrickable.com/api/")!) {
                         Label("Get a free Rebrickable API key", systemImage: "globe")
                     }
                     Link(destination: URL(string: "https://rebrickable.com/api/v3/docs/")!) {
                         Label("Rebrickable Documentation", systemImage: "book")
                     }
+                } header: {
+                    Text("Resources")
+                } footer: {
+                    Text("Set data comes from Rebrickable's free community database of 1M+ LEGO sets and parts. Not affiliated with or endorsed by Rebrickable.")
                 }
 
                 Section("Support") {
@@ -217,6 +229,7 @@ struct SettingsTabView: View {
             .onAppear {
                 if let stored = KeychainHelper.read(key: Self.keychainKey) {
                     apiKey = stored
+                    hasStoredKey = true
                 }
                 if UserDefaults.standard.bool(forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey) {
                     lastVerifiedAPIKey = apiKey
@@ -231,7 +244,9 @@ struct SettingsTabView: View {
         isTestingKey = true
         testResult = nil
         // Save the current key first so the API client picks it up
-        _ = KeychainHelper.save(key: Self.keychainKey, value: apiKey)
+        if KeychainHelper.save(key: Self.keychainKey, value: apiKey) {
+            hasStoredKey = true
+        }
         let client = RebrickableAPIClient(apiKeyProvider: { APIKeyProvider.getAPIKey() })
         Task {
             do {
@@ -246,6 +261,18 @@ struct SettingsTabView: View {
             }
             isTestingKey = false
         }
+    }
+
+    /// Back to BrickSweep's data files for future imports. Sets already imported keep
+    /// their parts and progress.
+    private func removeAPIKey() {
+        isFieldFocused = false
+        _ = KeychainHelper.delete(key: Self.keychainKey)
+        UserDefaults.standard.set(false, forKey: AppConstants.UserDefaultsKeys.hasVerifiedAPIKey)
+        lastVerifiedAPIKey = nil
+        testResult = nil
+        apiKey = ""
+        hasStoredKey = false
     }
 
     private func apiKeyTestFailureMessage(for error: Error) -> String {

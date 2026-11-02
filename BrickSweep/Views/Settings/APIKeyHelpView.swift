@@ -8,13 +8,13 @@ struct APIKeyHelpView: View {
             List {
                 Section {
                     Label {
-                        Text("BrickSweep uses Rebrickable to download set inventories and part details.")
+                        Text("You don't need a key. BrickSweep downloads set inventories from its own copy of Rebrickable's data, updated daily.")
                     } icon: {
                         Image(systemName: "square.stack.3d.up.fill")
                     }
 
                     Label {
-                        Text("Create a free Rebrickable API key, then paste it into Settings.")
+                        Text("With a free Rebrickable API key, BrickSweep looks sets up on Rebrickable directly instead, so sets added there today appear straight away. Paste your key into Settings, then tap Test Connection.")
                     } icon: {
                         Image(systemName: "key.fill")
                     }
@@ -32,7 +32,7 @@ struct APIKeyHelpView: View {
                     }
                 }
             }
-            .navigationTitle("API Key Help")
+            .navigationTitle("Your Own API Key")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
