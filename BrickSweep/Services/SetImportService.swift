@@ -1,6 +1,16 @@
 import Foundation
 import SwiftData
 
+/// What happened when the user asked to add a set.
+enum SetAddOutcome {
+    /// A new set record was created; its parts still need loading.
+    case created(LegoSet)
+    /// The set is already in the collection and fully imported. Nothing to load.
+    case alreadyInCollection(LegoSet)
+    /// The set exists but its import failed or never finished; it should be retried.
+    case needsRetry(LegoSet)
+}
+
 struct SetImportService: Sendable {
     private let apiClient: RebrickableAPIClientProtocol
     private let themeNameCache: ThemeNameCache
@@ -26,18 +36,29 @@ struct SetImportService: Sendable {
     // MARK: - Phase 1: create the set record and return immediately
 
     @MainActor
-    func createSet(setNum: String, modelContext: ModelContext) async throws -> LegoSet {
+    func existingSet(setNum: String, modelContext: ModelContext) throws -> LegoSet? {
         let normalized = Self.normalizeSetNum(setNum)
-
         let descriptor = FetchDescriptor<LegoSet>(
             predicate: #Predicate { $0.setNum == normalized }
         )
-        let existing = try modelContext.fetch(descriptor)
-        if let existingSet = existing.first {
-            return existingSet
+        return try modelContext.fetch(descriptor).first
+    }
+
+    @MainActor
+    func createSet(setNum: String, modelContext: ModelContext) async throws -> SetAddOutcome {
+        let normalized = Self.normalizeSetNum(setNum)
+        if let existing = try existingSet(setNum: normalized, modelContext: modelContext) {
+            return Self.outcome(forExisting: existing)
         }
 
         let setDTO = try await apiClient.fetchSet(setNum: normalized)
+
+        // Rebrickable's canonical number can differ from what was typed (e.g. "abc-1"
+        // vs "ABC-1"). setNum is unique, so inserting a second record would merge into
+        // the existing one and its parts would be imported again on top.
+        if let existing = try existingSet(setNum: setDTO.setNum, modelContext: modelContext) {
+            return Self.outcome(forExisting: existing)
+        }
         let themeName: String? = if let themeId = setDTO.themeId {
             await themeNameCache.topLevelName(for: themeId, apiClient: apiClient)
         } else {
@@ -56,25 +77,43 @@ struct SetImportService: Sendable {
         )
         modelContext.insert(legoSet)
         try modelContext.save()
-        return legoSet
+        return .created(legoSet)
+    }
+
+    private static func outcome(forExisting legoSet: LegoSet) -> SetAddOutcome {
+        legoSet.isImporting || legoSet.importFailed ? .needsRetry(legoSet) : .alreadyInCollection(legoSet)
     }
 
     // MARK: - Phase 2: page-by-page parts load
 
+    /// Identifies one logical part row: a part number in a colour. Minifigures use
+    /// LegoColorSortOrder.minifigColorId so they never collide with real colours.
+    private struct PartKey: Hashable {
+        let partNum: String
+        let colorId: Int
+    }
+
+    /// Loads the set's full inventory, replacing any parts already stored for it, so
+    /// calling it again can never leave duplicate rows.
     @MainActor
     func loadParts(into legoSet: LegoSet, setNum: String, modelContext: ModelContext) async throws {
+        if !legoSet.parts.isEmpty {
+            legoSet.parts.forEach { modelContext.delete($0) }
+            try modelContext.save()
+        }
+
         async let minifigsFetch = apiClient.fetchSetMinifigs(setNum: setNum)
 
         do {
-            // Keyed by "partNum-colorId" to deduplicate across pages/sub-inventories
-            var seen: [String: LegoPartInstance] = [:]
+            // One row per part and colour, summed across pages and sub-inventories
+            var seen: [PartKey: LegoPartInstance] = [:]
 
             var nextURL: String? = Self.partsPageURL(setNum: setNum)
 
             while let url = nextURL {
                 let page = try await apiClient.fetchSetPartsPage(urlString: url)
                 for partDTO in page.results where !partDTO.isSpare {
-                    let key = "\(partDTO.part.partNum)-\(partDTO.color.id)"
+                    let key = PartKey(partNum: partDTO.part.partNum, colorId: partDTO.color.id)
                     if let existing = seen[key] {
                         existing.requiredQty += partDTO.quantity
                     } else {
@@ -102,7 +141,7 @@ struct SetImportService: Sendable {
 
             let minifigsDTO = try await minifigsFetch
             for minifigDTO in minifigsDTO {
-                let key = "\(minifigDTO.setNum)-\(LegoColorSortOrder.minifigColorId)"
+                let key = PartKey(partNum: minifigDTO.setNum, colorId: LegoColorSortOrder.minifigColorId)
                 if let existing = seen[key] {
                     existing.requiredQty += minifigDTO.quantity
                 } else {
@@ -133,11 +172,10 @@ struct SetImportService: Sendable {
         }
     }
 
-    // MARK: - Retry: clear existing parts and re-import from scratch
+    // MARK: - Retry: re-import from scratch (loadParts clears existing parts)
 
     @MainActor
     func retryLoadParts(into legoSet: LegoSet, modelContext: ModelContext) async throws {
-        legoSet.parts.forEach { modelContext.delete($0) }
         legoSet.importFailed = false
         legoSet.isImporting = true
         try modelContext.save()
@@ -164,8 +202,15 @@ struct SetImportService: Sendable {
 
     @MainActor
     func importSet(setNum: String, modelContext: ModelContext) async throws -> LegoSet {
-        let set = try await createSet(setNum: setNum, modelContext: modelContext)
-        try await loadParts(into: set, setNum: set.setNum, modelContext: modelContext)
-        return set
+        switch try await createSet(setNum: setNum, modelContext: modelContext) {
+        case .created(let set):
+            try await loadParts(into: set, setNum: set.setNum, modelContext: modelContext)
+            return set
+        case .needsRetry(let set):
+            try await retryLoadParts(into: set, modelContext: modelContext)
+            return set
+        case .alreadyInCollection(let set):
+            return set
+        }
     }
 }

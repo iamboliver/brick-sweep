@@ -23,6 +23,7 @@ struct SetsTabView: View {
     @State private var isRefreshingThemeMetadata = false
     @State private var showAPIKeyHelp = false
     @State private var viewMode: SetsViewMode = .all
+    @State private var path = NavigationPath()
 
     private var totalMissingCount: Int {
         sets.reduce(0) { sum, set in
@@ -42,7 +43,7 @@ struct SetsTabView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 if sets.isEmpty && !viewModel.isLoading {
                     if !hasAPIKey || !hasVerifiedAPIKey {
@@ -186,6 +187,23 @@ struct SetsTabView: View {
                         stuck.forEach { $0.importFailed = true }
                         try? modelContext.save()
                     }
+                }
+            }
+            .alert(
+                "Already in Your Sets",
+                isPresented: Binding(
+                    get: { viewModel.existingSetNotice != nil },
+                    set: { if !$0 { viewModel.existingSetNotice = nil } }
+                ),
+                presenting: viewModel.existingSetNotice
+            ) { notice in
+                Button("Open Set") { path.append(notice.legoSet) }
+                Button("OK", role: .cancel) {}
+            } message: { notice in
+                if notice.isDownloading {
+                    Text("\(notice.legoSet.name) (\(notice.legoSet.setNum)) is still downloading. Open it to follow its progress.")
+                } else {
+                    Text("\(notice.legoSet.name) (\(notice.legoSet.setNum)) is already in your collection, with your progress saved.")
                 }
             }
             .alert("Error", isPresented: $viewModel.showError) {

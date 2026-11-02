@@ -67,7 +67,10 @@ struct AddSetView: View {
     }
 
     private func loadSetOrShowPaywall() {
-        if setCount >= AppConstants.IAP.freeTierSetLimit && !storeManager.isPro {
+        // A set that's already in the collection doesn't use up a free slot: let the
+        // view model explain that it's already there (or resume a failed import).
+        let alreadyInCollection = viewModel.isInCollection(setNum: viewModel.setNumInput, modelContext: modelContext)
+        if setCount >= AppConstants.IAP.freeTierSetLimit && !storeManager.isPro && !alreadyInCollection {
             showSheet = false
             showPaywall = true
         } else {
