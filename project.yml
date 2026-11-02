@@ -35,10 +35,10 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.oliverbarwell.BrickCheck
-        # The App Store version and build number. 1.0 shipped as build 1. Each upload
-        # needs a higher build number, and bs-btk.1 treats build 1 as a founding install.
+        # The App Store version and build number. 1.0 went live as build 6, and bs-btk.1
+        # treats builds up to 6 as founding installs, so every later upload must be higher.
         MARKETING_VERSION: "1.1"
-        CURRENT_PROJECT_VERSION: "2"
+        CURRENT_PROJECT_VERSION: "7"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         DEVELOPMENT_TEAM: L7Y6TC9CUG
         TARGETED_DEVICE_FAMILY: "1"
