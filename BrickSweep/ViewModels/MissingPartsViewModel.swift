@@ -44,8 +44,7 @@ final class MissingPartsViewModel {
         )
         guard let instances = try? modelContext.fetch(descriptor) else { return }
         for instance in instances {
-            instance.replacedQty += instance.missingQty
-            instance.missingQty = 0
+            instance.markMissingAsReplaced()
         }
         do {
             try modelContext.save()
