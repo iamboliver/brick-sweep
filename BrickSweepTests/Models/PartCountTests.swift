@@ -32,6 +32,15 @@ struct PartCountTests {
         #expect(brick.missingQty == 0)
     }
 
+    @Test("Tapping a row already over the limit brings it down to the limit, not to none")
+    func incrementOverLimit() {
+        let brick = part(required: 2, missing: 2, replaced: 1)
+        brick.incrementMissing()
+        #expect(brick.missingQty == 1)
+        brick.incrementMissing()
+        #expect(brick.missingQty == 0)
+    }
+
     @Test("Mark All Missing marks only the pieces not yet replaced")
     func markAll() {
         let brick = part(required: 2, replaced: 1)

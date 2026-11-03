@@ -60,9 +60,17 @@ extension LegoPartInstance {
     /// towards the required quantity too.
     var maxMissingQty: Int { max(0, requiredQty - replacedQty) }
 
-    /// One more missing. Past the maximum it wraps back to none, so tapping a card cycles.
+    /// One more missing. At the maximum it wraps back to none, so tapping a card cycles.
+    /// A count already over the maximum (left by older versions) comes down to it
+    /// instead, so a tap never discards those missing marks.
     func incrementMissing() {
-        missingQty = missingQty >= maxMissingQty ? 0 : missingQty + 1
+        if missingQty > maxMissingQty {
+            missingQty = maxMissingQty
+        } else if missingQty == maxMissingQty {
+            missingQty = 0
+        } else {
+            missingQty += 1
+        }
     }
 
     func decrementMissing() {
