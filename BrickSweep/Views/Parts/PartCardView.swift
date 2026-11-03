@@ -63,10 +63,10 @@ struct PartCardView: View {
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.title3)
-                        .foregroundStyle(part.missingQty < part.requiredQty ? AnyShapeStyle(AppTheme.legoYellow) : AnyShapeStyle(.quaternary))
+                        .foregroundStyle(part.missingQty < part.maxMissingQty ? AnyShapeStyle(AppTheme.legoYellow) : AnyShapeStyle(.quaternary))
                 }
                 .buttonStyle(.plain)
-                .disabled(part.missingQty >= part.requiredQty)
+                .disabled(part.missingQty >= part.maxMissingQty)
             }
         }
         .padding(AppTheme.Spacing.md)
@@ -110,23 +110,17 @@ struct PartCardView: View {
             .disabled(part.missingQty == 0)
 
             Button("Mark All Missing", systemImage: "xmark.circle") {
-                part.missingQty = part.requiredQty
+                part.markAllMissing()
             }
-            .disabled(part.missingQty == part.requiredQty)
+            .disabled(part.missingQty >= part.maxMissingQty)
         }
     }
 
     private func incrementMissing() {
-        if part.missingQty >= part.requiredQty {
-            part.missingQty = 0
-        } else {
-            part.missingQty += 1
-        }
+        part.incrementMissing()
     }
 
     private func decrementMissing() {
-        if part.missingQty > 0 {
-            part.missingQty -= 1
-        }
+        part.decrementMissing()
     }
 }
