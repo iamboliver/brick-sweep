@@ -97,7 +97,7 @@ The next planned phases are custom collections, Find in Collection, and bulk imp
 
 ## Privacy
 
-Collection data remains on the device. Without an API key, the app downloads requested sets from `data.bricksweep.app` (static files on Cloudflare), which receives the set number and standard request details such as the IP address. With a key, it sends the key and requested set identifiers to Rebrickable instead. Part images load from Rebrickable's image server. The app does not include analytics or advertising SDKs. See [PRIVACY.md](PRIVACY.md).
+Collection data remains on the device. Without an API key, the app downloads requested sets from `data.bricksweep.app` (static files on Cloudflare), which receives the set number and standard request details such as the IP address. With a key, it sends the key and requested set identifiers to Rebrickable instead. Part images load from Rebrickable's image server. The app does not include analytics or advertising SDKs. See the [privacy policy](https://oliverbarwell.com/bricksweep/privacy).
 
 ## Legal
 
