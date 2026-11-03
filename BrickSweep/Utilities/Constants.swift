@@ -11,6 +11,7 @@ enum AppConstants {
         static let verifiedFoundingUser = "verifiedFoundingUser"
         static let syncSetsToRebrickable = "syncSetsToRebrickable"
         static let hasVerifiedAPIKey = "hasVerifiedAPIKey"
+        static let whatsNewLastSeenVersion = "whatsNewLastSeenVersion"
     }
 
     enum Support {
