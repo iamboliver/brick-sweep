@@ -33,7 +33,7 @@ struct WhatsNewRelease: Identifiable {
     static let all: [WhatsNewRelease] = [
         WhatsNewRelease(
             version: "1.1",
-            note: "Hi, I'm Oliver, and I make BrickSweep on my own. I built it because checking a second-hand set piece by piece, then working out what to order, took far longer than it should. Thank you for using it so early. Several of the fixes below came straight from your reports.",
+            note: "Hi, I'm Oliver. I built BrickSweep for my autistic son, who loves building sets but often loses pieces. I wanted a quick way to see exactly what was missing and order replacements, without writing lists by hand. Thank you for using it so early. Several of the fixes below came straight from your reports.",
             signature: "Oliver",
             features: [
                 Feature(
