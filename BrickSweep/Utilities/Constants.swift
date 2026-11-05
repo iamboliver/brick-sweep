@@ -14,7 +14,7 @@ enum AppConstants {
     }
 
     enum Support {
-        static let feedbackEmail = "hello@oliverbarwell.com"
+        static let feedbackEmail = "hello@bricksweep.app"
         static let privacyPolicyURL = "https://oliverbarwell.com/bricksweep/privacy"
         static let rebrickableAPIURL = "https://rebrickable.com/api/"
         static let exampleSetNumber = "60272"
