@@ -2,6 +2,9 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AppNavigator.self) private var navigator
+    @Environment(StoreManager.self) private var storeManager
+    @State private var whatsNew: WhatsNewRelease?
+    @State private var didCheckWhatsNew = false
 
     var body: some View {
         TabView(selection: Binding(
@@ -25,5 +28,24 @@ struct ContentView: View {
             }
         }
         .tint(AppTheme.legoYellow)
+        .onChange(of: storeManager.hasCheckedFoundingStatus, initial: true) { _, checked in
+            checkWhatsNew(founderStatusKnown: checked)
+        }
+        .sheet(item: $whatsNew) { release in
+            WhatsNewView(release: release, isFoundingUser: storeManager.isFoundingUser) {
+                navigator.selectedTab = .settings
+            }
+        }
+    }
+
+    /// Runs at launch and again once founder status is known, deciding at most once.
+    private func checkWhatsNew(founderStatusKnown: Bool) {
+        guard !didCheckWhatsNew else { return }
+        let tracker = WhatsNewTracker()
+        let release = tracker.releaseToShow(isFoundingUser: founderStatusKnown ? storeManager.isFoundingUser : nil)
+        if release != nil || tracker.hasDecided {
+            didCheckWhatsNew = true
+            whatsNew = release
+        }
     }
 }
