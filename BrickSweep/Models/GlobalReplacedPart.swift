@@ -51,7 +51,7 @@ struct GlobalReplacedPart: Identifiable {
                 return a.name < b.name
             }
         case .partNumber:
-            return aggregated.sorted { $0.partNum < $1.partNum }
+            return aggregated.sorted { PartSortOption.isOrderedByNumber((PartSortOption.displayedNumber(elementId: $0.elementId, partNum: $0.partNum), $0.colorId, $0.name), (PartSortOption.displayedNumber(elementId: $1.elementId, partNum: $1.partNum), $1.colorId, $1.name)) }
         }
     }
 }

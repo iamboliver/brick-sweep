@@ -48,7 +48,7 @@ final class PartListViewModel {
                 return a.name < b.name
             }
         case .partNumber:
-            return { a, b in a.partNum < b.partNum }
+            return { a, b in PartSortOption.isOrderedByNumber((PartSortOption.displayedNumber(elementId: a.elementId, partNum: a.partNum), a.colorId, a.name), (PartSortOption.displayedNumber(elementId: b.elementId, partNum: b.partNum), b.colorId, b.name)) }
         }
     }
 
