@@ -159,34 +159,37 @@ struct SetsTabView: View {
                     }
                 }
             }
-            .alert(
-                "Already in Your Sets",
-                isPresented: Binding(
-                    get: { viewModel.existingSetNotice != nil },
-                    set: { if !$0 { viewModel.existingSetNotice = nil } }
-                ),
-                presenting: viewModel.existingSetNotice
-            ) { notice in
-                Button("Open Set") { path.append(notice.legoSet) }
-                Button("OK", role: .cancel) {}
-            } message: { notice in
-                if notice.isDownloading {
-                    Text("\(notice.legoSet.name) (\(notice.legoSet.setNum)) is still downloading. Open it to follow its progress.")
-                } else {
-                    Text("\(notice.legoSet.name) (\(notice.legoSet.setNum)) is already in your collection, with your progress saved.")
-                }
-            }
-            .alert("Error", isPresented: $viewModel.showError) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                if let error = viewModel.errorMessage {
-                    Text(error)
-                }
-            }
             .onChange(of: viewMode) { _, newValue in
                 if newValue == .themes {
                     refreshThemeMetadataIfNeeded()
                 }
+            }
+        }
+        // Alerts take the tint from above the view they're attached to, so the yellow sits
+        // inside the stack and the alerts outside it; yellow button text is unreadable on glass.
+        .tint(AppTheme.legoYellow)
+        .alert(
+            "Already in Your Sets",
+            isPresented: Binding(
+                get: { viewModel.existingSetNotice != nil },
+                set: { if !$0 { viewModel.existingSetNotice = nil } }
+            ),
+            presenting: viewModel.existingSetNotice
+        ) { notice in
+            Button("Open Set") { path.append(notice.legoSet) }
+            Button("OK", role: .cancel) {}
+        } message: { notice in
+            if notice.isDownloading {
+                Text("\(notice.legoSet.name) (\(notice.legoSet.setNum)) is still downloading. Open it to follow its progress.")
+            } else {
+                Text("\(notice.legoSet.name) (\(notice.legoSet.setNum)) is already in your collection, with your progress saved.")
+            }
+        }
+        .alert("Error", isPresented: $viewModel.showError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            if let error = viewModel.errorMessage {
+                Text(error)
             }
         }
     }
