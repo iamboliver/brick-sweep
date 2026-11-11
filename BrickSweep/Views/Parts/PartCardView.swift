@@ -68,6 +68,9 @@ struct PartCardView: View {
                 .buttonStyle(.plain)
                 .disabled(part.missingQty >= part.maxMissingQty)
             }
+            // A disabled button lets the tap fall through to the card's increment gesture; swallow it here.
+            .contentShape(Rectangle())
+            .onTapGesture {}
         }
         .padding(AppTheme.Spacing.md)
         .background(
