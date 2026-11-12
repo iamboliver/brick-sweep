@@ -32,7 +32,7 @@ enum SetDataError: LocalizedError {
 /// Cloudflare's cache.
 struct SetDataClient: SetDataClientProtocol {
     static let defaultBaseURL = URL(string: "https://data.bricksweep.app/v1/")!
-    private static let userAgent = "BrickSweep/1.0"
+    private static let userAgent = AppConstants.userAgent
     private static let maxAttempts = 3
     private static let firstRetryDelay = Duration.seconds(1)
     /// The longest `Retry-After` worth waiting through while the import overlay is up.
