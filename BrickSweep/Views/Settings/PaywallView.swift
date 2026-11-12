@@ -149,7 +149,7 @@ struct PaywallView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(AppTheme.legoYellow)
-                        .foregroundStyle(Color(.label))
+                        .foregroundStyle(.black)
                         .controlSize(.large)
                         .disabled(storeManager.isLoading || storeManager.productFetchState == .loading)
 

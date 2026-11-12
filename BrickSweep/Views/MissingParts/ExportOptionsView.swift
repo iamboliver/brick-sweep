@@ -59,7 +59,7 @@ struct ExportOptionsView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.legoYellow)
-                    .foregroundStyle(Color(.label))
+                    .foregroundStyle(.black)
 
                     if let data = viewModel.exportText.data(using: .utf8) {
                         let filename = viewModel.exportFormat == .brickLinkXML ? "missing_parts.xml" : "missing_parts.csv"
