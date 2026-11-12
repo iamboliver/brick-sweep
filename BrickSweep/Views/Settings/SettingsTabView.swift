@@ -111,7 +111,7 @@ struct SettingsTabView: View {
                         Label("Why use your own key?", systemImage: "questionmark.circle")
                     }
                 } header: {
-                    Label("Your Own Rebrickable Key", systemImage: "key.fill")
+                    Label("Your Own Rebrickable Key (Optional)", systemImage: "key.fill")
                 } footer: {
                     if let message = keySettings.removalError {
                         Text(message)
