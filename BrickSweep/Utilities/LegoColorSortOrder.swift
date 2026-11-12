@@ -3,6 +3,26 @@ import Foundation
 enum PartSortOption: String, CaseIterable {
     case color = "Colour"
     case partNumber = "Part Number"
+
+    /// The number printed on a part card: the element ID from the instruction manual when
+    /// there is one, otherwise the Rebrickable part number.
+    static func displayedNumber(elementId: String?, partNum: String) -> String {
+        elementId ?? partNum
+    }
+
+    /// Orders by the displayed number (digits compared as numbers, so 3005 comes before 30000),
+    /// then by colour and name so equal numbers don't shuffle.
+    static func isOrderedByNumber(
+        _ a: (number: String, colorId: Int, name: String),
+        _ b: (number: String, colorId: Int, name: String)
+    ) -> Bool {
+        let result = a.number.compare(b.number, options: .numeric)
+        if result != .orderedSame { return result == .orderedAscending }
+        let ca = LegoColorSortOrder.sortPosition(for: a.colorId)
+        let cb = LegoColorSortOrder.sortPosition(for: b.colorId)
+        if ca != cb { return ca < cb }
+        return a.name < b.name
+    }
 }
 
 /// Sort order for Rebrickable color IDs matching the LEGO instruction manual

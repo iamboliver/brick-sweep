@@ -17,17 +17,22 @@ struct ContentView: View {
 
             Tab("Missing", systemImage: "exclamationmark.triangle.fill", value: AppTab.missing) {
                 MissingPartsTabView()
+                    .tint(AppTheme.legoYellow)
             }
 
             Tab("Replaced", systemImage: "checkmark.circle.fill", value: AppTab.replaced) {
                 ReplacedPartsTabView()
+                    .tint(AppTheme.legoYellow)
             }
 
             Tab("Settings", systemImage: "gearshape.fill", value: AppTab.settings) {
                 SettingsTabView()
+                    .tint(AppTheme.legoYellow)
             }
         }
-        .tint(AppTheme.legoYellow)
+        // Alerts take the tint from above the view they're attached to. Yellow button text is
+        // unreadable on their glass, so each tab applies the yellow itself (Sets keeps its alerts outside it).
+        .tint(Color(.label))
         .onChange(of: storeManager.hasCheckedFoundingStatus, initial: true) { _, checked in
             checkWhatsNew(founderStatusKnown: checked)
         }
