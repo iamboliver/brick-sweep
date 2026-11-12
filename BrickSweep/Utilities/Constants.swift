@@ -21,6 +21,16 @@ enum AppConstants {
         static let exampleSetNumber = "60272"
     }
 
+    /// Sent on requests to BrickSweep's data files and Rebrickable, so the version is the real one.
+    static var userAgent: String {
+        userAgent(version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String)
+    }
+
+    static func userAgent(version: String?) -> String {
+        guard let version, !version.isEmpty else { return "BrickSweep" }
+        return "BrickSweep/\(version)"
+    }
+
     enum IAP {
         static let proProductID = "com.oliverbarwell.BrickCheck.pro"
         static let freeTierSetLimit = 5

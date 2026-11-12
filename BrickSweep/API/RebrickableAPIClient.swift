@@ -13,7 +13,7 @@ protocol RebrickableAPIClientProtocol: Sendable {
 struct RebrickableAPIClient: RebrickableAPIClientProtocol {
     private let baseURL = "https://rebrickable.com/api/v3/lego/"
     private let maxPages = 100
-    private static let userAgent = "BrickSweep/1.0"
+    private static let userAgent = AppConstants.userAgent
     private let session: URLSession
     private let apiKeyProvider: @Sendable () -> String?
 
