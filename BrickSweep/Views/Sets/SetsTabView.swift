@@ -14,7 +14,7 @@ struct SetsTabView: View {
     @State private var viewModel = SetListViewModel(
         importService: SetImportService(
             apiClient: RebrickableAPIClient(apiKeyProvider: { APIKeyProvider.getAPIKey() }),
-            setDataClient: SetDataClient(),
+            setDataClient: SetDataClient.forApp(),
             usesOwnAPIKey: { APIKeyProvider.hasVerifiedAPIKey() }
         )
     )

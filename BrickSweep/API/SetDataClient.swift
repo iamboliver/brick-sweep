@@ -149,3 +149,34 @@ struct SetDataClient: SetDataClientProtocol {
         throw SetDataError.unavailable(underlying: lastError)
     }
 }
+
+extension SetDataClient {
+    /// The client the app uses. Debug builds can slow or fail downloads from the scheme's
+    /// environment, so the download and failure paths can be tried by hand without a network.
+    static func forApp() -> SetDataClientProtocol {
+        #if DEBUG
+        DebugSetDataClient(wrapping: SetDataClient())
+        #else
+        SetDataClient()
+        #endif
+    }
+}
+
+#if DEBUG
+/// BRICKSWEEP_SLOW_IMPORT=<seconds> waits before each download; BRICKSWEEP_FAIL_IMPORT=1
+/// fails each one as if the device were offline. With neither set it passes straight through.
+struct DebugSetDataClient: SetDataClientProtocol {
+    let wrapping: SetDataClientProtocol
+
+    func fetchSetFile(setNum: String) async throws -> SetDataFile {
+        let environment = ProcessInfo.processInfo.environment
+        if let seconds = environment["BRICKSWEEP_SLOW_IMPORT"].flatMap(Double.init), seconds > 0 {
+            try await Task.sleep(for: .seconds(seconds))
+        }
+        if environment["BRICKSWEEP_FAIL_IMPORT"] == "1" {
+            throw SetDataError.unavailable(underlying: URLError(.notConnectedToInternet))
+        }
+        return try await wrapping.fetchSetFile(setNum: setNum)
+    }
+}
+#endif
