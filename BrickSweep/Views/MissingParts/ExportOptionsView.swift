@@ -70,6 +70,8 @@ struct ExportOptionsView: View {
                             Label("Share", systemImage: "square.and.arrow.up")
                         }
                         .buttonStyle(.bordered)
+                        // Neutral, not yellow: yellow text on the pale yellow wash looked disabled.
+                        .tint(Color(.label))
                     }
                 }
                 .padding(.horizontal)

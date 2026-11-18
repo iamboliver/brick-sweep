@@ -129,7 +129,8 @@ struct PartListView: View {
                                     Label(isRetrying ? "Retrying…" : "Retry Download", systemImage: "arrow.clockwise")
                                 }
                                 .buttonStyle(.bordered)
-                                .tint(AppTheme.legoYellow)
+                                // Neutral, not yellow: yellow text on the pale yellow wash looked disabled.
+                                .tint(Color(.label))
                                 .disabled(isRetrying)
                             }
                             .padding(.top, AppTheme.Spacing.md)
