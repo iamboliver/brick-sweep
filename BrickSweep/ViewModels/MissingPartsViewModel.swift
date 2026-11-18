@@ -8,6 +8,8 @@ final class MissingPartsViewModel {
     var sortOption: PartSortOption = .color
     var searchText: String = ""
     var exportText: String = ""
+    /// The export written to a named file for Share. Nil if writing it failed.
+    var exportFileURL: URL?
     var showExportOptions = false
     var exportFormat: ExportFormat = .brickLinkXML
     var saveErrorMessage: String?
@@ -16,6 +18,13 @@ final class MissingPartsViewModel {
     enum ExportFormat: String, CaseIterable {
         case brickLinkXML = "BrickLink XML"
         case csv = "CSV"
+
+        var filename: String {
+            switch self {
+            case .brickLinkXML: "BrickSweep Missing Parts.xml"
+            case .csv: "BrickSweep Missing Parts.csv"
+            }
+        }
     }
 
     var filteredMissingParts: [GlobalMissingPart] {
@@ -63,6 +72,23 @@ final class MissingPartsViewModel {
         case .csv:
             exportText = exportService.generateCSV(from: missingParts)
         }
+        exportFileURL = Self.writeExportFile(exportText, named: exportFormat.filename)
         showExportOptions = true
+    }
+
+    /// Shared as raw data, the export arrived as ".com.apple.Foundation.NSItemProvider.XXXX.tmp";
+    /// shared as a file, it keeps this name.
+    static func writeExportFile(
+        _ text: String,
+        named filename: String,
+        in directory: URL = FileManager.default.temporaryDirectory
+    ) -> URL? {
+        let url = directory.appendingPathComponent(filename)
+        do {
+            try Data(text.utf8).write(to: url, options: .atomic)
+            return url
+        } catch {
+            return nil
+        }
     }
 }

@@ -61,12 +61,8 @@ struct ExportOptionsView: View {
                     .tint(AppTheme.legoYellow)
                     .foregroundStyle(.black)
 
-                    if let data = viewModel.exportText.data(using: .utf8) {
-                        let filename = viewModel.exportFormat == .brickLinkXML ? "missing_parts.xml" : "missing_parts.csv"
-                        ShareLink(
-                            item: data,
-                            preview: SharePreview(filename)
-                        ) {
+                    if let fileURL = viewModel.exportFileURL {
+                        ShareLink(item: fileURL) {
                             Label("Share", systemImage: "square.and.arrow.up")
                         }
                         .buttonStyle(.bordered)

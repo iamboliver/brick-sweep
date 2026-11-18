@@ -124,6 +124,26 @@ struct PartCountTests {
         #expect((brick.missingQty, brick.replacedQty) == (0, 2))
     }
 
+    @Test("Export shares a file named for its format, not a .tmp (bs-91t)")
+    func exportSharesNamedFile() async throws {
+        let (container, context) = try Self.store()
+        defer { withExtendedLifetime(container) {} }
+        context.insert(part(required: 2, missing: 1, replaced: 0))
+        try context.save()
+        let viewModel = MissingPartsViewModel()
+        viewModel.refresh(modelContext: context)
+
+        for format in MissingPartsViewModel.ExportFormat.allCases {
+            viewModel.exportFormat = format
+            await viewModel.generateExport()
+            let url = try #require(viewModel.exportFileURL)
+            #expect(url.lastPathComponent == format.filename)
+            #expect(try String(contentsOf: url, encoding: .utf8) == viewModel.exportText)
+        }
+        #expect(MissingPartsViewModel.ExportFormat.brickLinkXML.filename.hasSuffix(".xml"))
+        #expect(MissingPartsViewModel.ExportFormat.csv.filename.hasSuffix(".csv"))
+    }
+
     private static func store() throws -> (ModelContainer, ModelContext) {
         let container = try ModelContainer(
             for: LegoSet.self, LegoPartInstance.self,
