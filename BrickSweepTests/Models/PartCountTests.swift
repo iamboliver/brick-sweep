@@ -124,11 +124,94 @@ struct PartCountTests {
         #expect((brick.missingQty, brick.replacedQty) == (0, 2))
     }
 
+    @Test("Export shares a file named for its format, not a .tmp (bs-91t)")
+    func exportSharesNamedFile() async throws {
+        let (container, context) = try Self.store()
+        defer { withExtendedLifetime(container) {} }
+        context.insert(part(required: 2, missing: 1, replaced: 0))
+        try context.save()
+        let viewModel = MissingPartsViewModel(exportDirectory: try Self.exportDirectory())
+        viewModel.refresh(modelContext: context)
+
+        for format in MissingPartsViewModel.ExportFormat.allCases {
+            viewModel.exportFormat = format
+            await viewModel.generateExport()
+            let url = try #require(viewModel.exportFileURL)
+            #expect(url.lastPathComponent == format.filename)
+            #expect(try String(contentsOf: url, encoding: .utf8) == viewModel.exportText)
+        }
+        #expect(MissingPartsViewModel.ExportFormat.brickLinkXML.filename.hasSuffix(".xml"))
+        #expect(MissingPartsViewModel.ExportFormat.csv.filename.hasSuffix(".csv"))
+    }
+
+    @Test("A slow XML export finishing after a switch to CSV doesn't replace the CSV (bs-91t)")
+    func lateXMLExportDoesNotReplaceCSV() async throws {
+        let xmlGate = ExportGate()
+        let viewModel = MissingPartsViewModel(
+            generateExportText: { format, _ in
+                switch format {
+                case .brickLinkXML:
+                    await xmlGate.wait()
+                    return "<INVENTORY></INVENTORY>"
+                case .csv:
+                    return "Part Number,Name,Color,Quantity,Sets"
+                }
+            },
+            exportDirectory: try Self.exportDirectory()
+        )
+
+        // Open as XML, which stalls; switch to CSV, which finishes; then XML finishes late.
+        viewModel.exportFormat = .brickLinkXML
+        let xmlRequest = Task { await viewModel.generateExport() }
+        await xmlGate.waitUntilWaiting()
+        viewModel.exportFormat = .csv
+        await viewModel.generateExport()
+        await xmlGate.open()
+        await xmlRequest.value
+
+        #expect(viewModel.exportText == "Part Number,Name,Color,Quantity,Sets")
+        let url = try #require(viewModel.exportFileURL)
+        #expect(url.lastPathComponent == MissingPartsViewModel.ExportFormat.csv.filename)
+        #expect(try String(contentsOf: url, encoding: .utf8) == "Part Number,Name,Color,Quantity,Sets")
+    }
+
+    /// A folder of its own, so tests running in parallel don't write over each other's export.
+    private static func exportDirectory() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ExportTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
     private static func store() throws -> (ModelContainer, ModelContext) {
         let container = try ModelContainer(
             for: LegoSet.self, LegoPartInstance.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         return (container, ModelContext(container))
+    }
+}
+
+/// Holds an export back until the test opens it, so requests can finish out of order.
+private actor ExportGate {
+    private var held: CheckedContinuation<Void, Never>?
+    private var onHeld: CheckedContinuation<Void, Never>?
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            held = continuation
+            onHeld?.resume()
+            onHeld = nil
+        }
+    }
+
+    func waitUntilWaiting() async {
+        guard held == nil else { return }
+        await withCheckedContinuation { onHeld = $0 }
+    }
+
+    func open() {
+        held?.resume()
+        held = nil
     }
 }
