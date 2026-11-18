@@ -19,6 +19,15 @@ struct BrickSweepApp: App {
                     }
                 }
         }
-        .modelContainer(for: [LegoSet.self, LegoPartInstance.self])
+        .modelContainer(for: [LegoSet.self, LegoPartInstance.self], inMemory: Self.storesInMemory)
+    }
+
+    /// UI tests start from an empty collection on every launch and leave the real one alone.
+    private static var storesInMemory: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.environment["BRICKSWEEP_UI_TEST"] == "1"
+        #else
+        false
+        #endif
     }
 }

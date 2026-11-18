@@ -188,6 +188,19 @@ struct LegoSetCompletionTests {
         #expect(Completion.percent(completed: group.accountedQty, total: group.totalRequiredQty) == 99)
     }
 
+    @Test("A theme group with a set added is not equal to the old group, so its row redraws (bs-8ll)")
+    func themeGroupEqualityIncludesSets() throws {
+        let context = try makeContext()
+        let first = makeSet(setNum: "1000-1", numParts: 10, context: context)
+        let added = makeSet(setNum: "2000-1", numParts: 10, context: context)
+
+        let before = ThemeGroup(name: "Star Wars", sets: [first])
+        let after = ThemeGroup(name: "Star Wars", sets: [first, added])
+        #expect(before.id == after.id)
+        #expect(before != after)
+        #expect(before == ThemeGroup(name: "Star Wars", sets: [first]))
+    }
+
     // MARK: - Ring wiring: each screen feeds its ring pieces, not part types
 
     /// One part type missing 1 of 10 copies, two other types complete:
