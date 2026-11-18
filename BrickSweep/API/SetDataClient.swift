@@ -164,7 +164,8 @@ extension SetDataClient {
 
 #if DEBUG
 /// BRICKSWEEP_SLOW_IMPORT=<seconds> waits before each download; BRICKSWEEP_FAIL_IMPORT=1
-/// fails each one as if the device were offline. With neither set it passes straight through.
+/// fails each one as if the device were offline. BRICKSWEEP_UI_TEST=1 serves a small built-in
+/// set instead of downloading. With none set it passes straight through.
 struct DebugSetDataClient: SetDataClientProtocol {
     let wrapping: SetDataClientProtocol
 
@@ -176,7 +177,42 @@ struct DebugSetDataClient: SetDataClientProtocol {
         if environment["BRICKSWEEP_FAIL_IMPORT"] == "1" {
             throw SetDataError.unavailable(underlying: URLError(.notConnectedToInternet))
         }
+        if environment["BRICKSWEEP_UI_TEST"] == "1" {
+            return Self.uiTestFile(setNum: setNum)
+        }
         return try await wrapping.fetchSetFile(setNum: setNum)
+    }
+
+    /// An offline set for UI tests: numbers starting 75 are Star Wars, the rest City.
+    static func uiTestFile(setNum: String) -> SetDataFile {
+        let isStarWars = setNum.hasPrefix("75")
+        return SetDataFile(
+            schemaVersion: SetDataFile.supportedSchemaVersion,
+            set: .init(
+                setNum: setNum,
+                name: "Test Set \(setNum)",
+                year: 2024,
+                themeId: isStarWars ? 158 : 52,
+                themeName: isStarWars ? "Star Wars" : "City",
+                numParts: 4,
+                imgUrl: nil
+            ),
+            parts: [
+                .init(
+                    partNum: "3001",
+                    name: "Brick 2 x 4",
+                    colorId: 4,
+                    colorName: "Red",
+                    rgb: "C91A09",
+                    quantity: 4,
+                    isSpare: false,
+                    imgUrl: nil,
+                    elementId: nil,
+                    bricklinkPartNum: nil
+                ),
+            ],
+            minifigs: []
+        )
     }
 }
 #endif

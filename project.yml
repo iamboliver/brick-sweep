@@ -59,12 +59,27 @@ targets:
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/BrickSweep.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BrickSweep"
         BUNDLE_LOADER: "$(TEST_HOST)"
 
+  BrickSweepUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - BrickSweepUITests
+    dependencies:
+      - target: BrickSweep
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.oliverbarwell.BrickCheckUITests
+        DEVELOPMENT_TEAM: L7Y6TC9CUG
+        TEST_TARGET_NAME: BrickSweep
+
 schemes:
   BrickSweep:
     build:
       targets:
         BrickSweep: all
         BrickSweepTests: [test]
+        BrickSweepUITests: [test]
     run:
       config: Debug
       storeKitConfiguration: BrickSweep.storekit
@@ -72,6 +87,7 @@ schemes:
       config: Debug
       targets:
         - BrickSweepTests
+        - BrickSweepUITests
     profile:
       config: Release
     analyze:
