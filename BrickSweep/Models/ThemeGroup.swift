@@ -1,5 +1,7 @@
 import Foundation
 
+/// Equality includes the sets, not just the name: SwiftUI skips redrawing a row whose
+/// group compares equal, so a name-only == left a theme's row stale after adding a set.
 struct ThemeGroup: Identifiable, Hashable {
     let id: String
     let name: String
@@ -35,14 +37,6 @@ struct ThemeGroup: Identifiable, Hashable {
         self.id = name
         self.name = name
         self.sets = sets
-    }
-
-    static func == (lhs: ThemeGroup, rhs: ThemeGroup) -> Bool {
-        lhs.id == rhs.id
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
     }
 
     static func groups(from sets: [LegoSet]) -> [ThemeGroup] {
