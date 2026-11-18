@@ -166,7 +166,7 @@ struct SettingsTabView: View {
                 }
 
                 Section {
-                    Label("Without an API key, BrickSweep downloads set lists from data.bricksweep.app, which receives the set number and standard request details such as your IP address. If you add a key, it's stored in your device's Keychain and only sent to rebrickable.com. Your collection and progress stay on your device.", systemImage: "lock.shield")
+                    Label("Without an API key, BrickSweep downloads set lists from data.bricksweep.app, which receives the set number and standard request details such as your IP address. Pictures load from Rebrickable's image server, which also sees your IP address. If you add a key, it's stored in your device's Keychain and only sent to rebrickable.com. Your collection and progress stay on your device.", systemImage: "lock.shield")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     Link(destination: URL(string: AppConstants.Support.privacyPolicyURL)!) {
