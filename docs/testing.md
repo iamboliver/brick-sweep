@@ -47,7 +47,7 @@ open build/TestResults/unit-20261123-164835.xcresult
 - fails the check if the project won't generate, the build fails or any test fails
 - uploads the result bundle, the raw log and `build/DerivedData/Logs` as the `unit-test-results` artifact when a run fails, kept for 14 days
 
-A newer push to a pull request cancels the run already going for it.
+A newer push to a pull request cancels the run already going for it. Every push to `main` gets its own run that is never cancelled, so each commit on `main` is tested even when several land within one run.
 
 To bump XcodeGen, update `XCODEGEN_VERSION` and `XCODEGEN_SHA256` together (`shasum -a 256 xcodegen.zip` on the release's `xcodegen.zip`).
 

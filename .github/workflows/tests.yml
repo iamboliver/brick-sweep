@@ -10,9 +10,11 @@ on:
 permissions:
   contents: read
 
+# A newer push to a pull request supersedes the run in progress. Pushes to main get a
+# group each, because GitHub keeps only one pending run per group and would otherwise
+# drop a queued commit's run when the next one arrives.
 concurrency:
-  group: tests-${{ github.ref }}
-  # A newer push to a pull request supersedes the run in progress; runs on main all finish.
+  group: tests-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
