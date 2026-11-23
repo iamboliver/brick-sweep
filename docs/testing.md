@@ -67,7 +67,7 @@ A newer push to a pull request cancels the run already going for it. Every push 
 
 ### Artifact retention
 
-Artifacts are kept for 14 days (`retention-days: 14` in both workflows), well under the repository's default of 90, and then deleted by GitHub. The unit-test workflow uploads only when a run fails. A failing UI run is larger, about 15 MB, mostly its screen recording. Download a run's artifact from its page, or with `gh run download <run id>`.
+Artifacts are kept for 14 days (`retention-days: 14` in both workflows), well under the repository's default of 90, and then deleted by GitHub. The unit-test workflow uploads only when a run fails. A failing unit run uploads about 2 MB. A failing UI run uploads around 65 MB, most of it what Xcode keeps in the result bundle for a failed UI test (screen recordings and its own diagnostics). Download a run's artifact from its page, or with `gh run download <run id>`.
 
 To bump XcodeGen, update `XCODEGEN_VERSION` and `XCODEGEN_SHA256` in `.github/actions/setup-toolchain/action.yml` together (`shasum -a 256 xcodegen.zip` on the release's `xcodegen.zip`).
 
