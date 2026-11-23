@@ -1,0 +1,94 @@
+# Runs scripts/test.sh on demand, from the Actions tab or remotely with the GitHub CLI or
+# REST API, so no SSH access to a Mac is needed. See "Remote test runs" in docs/testing.md.
+name: Remote tests
+run-name: "Remote tests: ${{ inputs.scope }} on ${{ inputs.ref }} ${{ inputs.request_id }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit SHA to test
+        type: string
+        default: main
+      scope:
+        description: Tests to run
+        type: choice
+        options: [unit, ui, all]
+        default: unit
+      simulator_name:
+        description: Simulator device
+        type: string
+        default: iPhone 18 Pro
+      simulator_os:
+        description: Simulator iOS version
+        type: string
+        default: "27.2"
+      verbose:
+        description: Print raw xcodebuild output instead of the xcbeautify summary
+        type: boolean
+        default: false
+      request_id:
+        description: Optional caller ID, added to the run name so a remote caller can find its run
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests (${{ inputs.scope }})
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      # Inputs go through env, never straight into a script, so they can't inject shell.
+      - name: Record inputs
+        env:
+          REF: ${{ inputs.ref }}
+          SCOPE: ${{ inputs.scope }}
+          SIMULATOR_NAME: ${{ inputs.simulator_name }}
+          SIMULATOR_OS: ${{ inputs.simulator_os }}
+          VERBOSE: ${{ inputs.verbose }}
+          REQUEST_ID: ${{ inputs.request_id }}
+        run: |
+          {
+            echo "## Remote test run"
+            echo
+            echo "| Input | Value |"
+            echo "|-|-|"
+            echo "| ref | \`$REF\` ($(git rev-parse --short HEAD)) |"
+            echo "| scope | $SCOPE |"
+            echo "| simulator | $SIMULATOR_NAME, iOS $SIMULATOR_OS |"
+            echo "| verbose | $VERBOSE |"
+            echo "| request_id | ${REQUEST_ID:-none} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ ! -x scripts/test.sh || ! -f .github/actions/setup-toolchain/action.yml ]]; then
+            echo "::error::$REF predates scripts/test.sh and the shared toolchain action, so it can't be tested by this workflow"
+            exit 1
+          fi
+
+      - uses: ./.github/actions/setup-toolchain
+
+      - name: Run ${{ inputs.scope }} tests
+        env:
+          SCOPE: ${{ inputs.scope }}
+          SIMULATOR_NAME: ${{ inputs.simulator_name }}
+          SIMULATOR_OS: ${{ inputs.simulator_os }}
+          VERBOSE: ${{ inputs.verbose && '1' || '0' }}
+          RESULT_BUNDLE_PATH: build/TestResults/${{ inputs.scope }}.xcresult
+        run: scripts/test.sh "$SCOPE"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-${{ inputs.scope }}
+          path: |
+            build/TestResults
+            build/DerivedData/Logs
+          retention-days: 14
+          if-no-files-found: ignore

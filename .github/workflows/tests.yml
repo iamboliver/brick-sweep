@@ -1,5 +1,5 @@
 # Runs the unit tests on every pull request and on pushes to main.
-# The toolchain here must match scripts/test.sh and docs/testing.md.
+# The toolchain is pinned in .github/actions/setup-toolchain and must match scripts/test.sh.
 name: Tests
 
 on:
@@ -17,12 +17,6 @@ concurrency:
   group: tests-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-env:
-  DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
-  XCODEGEN_VERSION: 2.44.1
-  XCODEGEN_SHA256: a2e905fb68446e9bb4008cdfe2e13e3f176d0cbcca828b71770f8e53fca91b73
-  HOMEBREW_NO_AUTO_UPDATE: 1
-
 jobs:
   unit-tests:
     name: Unit tests
@@ -31,18 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install XcodeGen ${{ env.XCODEGEN_VERSION }}
-        run: |
-          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" \
-            "https://github.com/yonaskolb/XcodeGen/releases/download/$XCODEGEN_VERSION/xcodegen.zip"
-          echo "$XCODEGEN_SHA256  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
-          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
-          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
-
-      - name: Show toolchain
-        run: |
-          xcodebuild -version
-          xcodegen --version
+      - uses: ./.github/actions/setup-toolchain
 
       - name: Run unit tests
         env:
