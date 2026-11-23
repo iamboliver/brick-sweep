@@ -11,6 +11,7 @@
 #   SIMULATOR_OS       default "27.2"
 #   DERIVED_DATA_PATH  default build/DerivedData
 #   RESULT_BUNDLE_PATH default build/TestResults/<scope>-<UTC timestamp>.xcresult
+#   VERBOSE            1 prints raw xcodebuild output instead of xcbeautify's summary
 
 set -euo pipefail
 
@@ -82,14 +83,29 @@ test_command=(
 )
 
 formatter=(cat)
-command -v xcbeautify >/dev/null && formatter=(xcbeautify)
+if [[ "${VERBOSE:-0}" != 1 ]] && command -v xcbeautify >/dev/null; then
+    formatter=(xcbeautify)
+fi
 
 # xcbeautify drops some Swift Testing output, so keep the raw log and repeat its summary.
 log="${result_bundle%.xcresult}.log"
 status=0
 "${test_command[@]}" 2>&1 | tee "$log" | "${formatter[@]}" || status=$?
 
+# Swift Testing (unit) and XCTest (UI) each print their own count; the last XCTest
+# "Executed" line is the total across its suites.
+summary="$(
+    grep -E 'Test run with [0-9]+ tests' "$log" || true
+    grep -E '^[[:space:]]*Executed [1-9][0-9]* tests?,' "$log" | tail -1 | sed -E 's/^[[:space:]]*/XCTest: /' || true
+    grep -E '\*\* (TEST|BUILD) (SUCCEEDED|FAILED)' "$log" || true
+)"
+
 echo
-grep -E 'Test run with [0-9]+ tests|\*\* TEST (SUCCEEDED|FAILED)' "$log" || true
+echo "$summary"
 echo "Full log: $log"
+
+if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+    printf '### %s tests\n\n```\n%s\n```\n' "$scope" "$summary" >> "$GITHUB_STEP_SUMMARY"
+fi
+
 exit "$status"

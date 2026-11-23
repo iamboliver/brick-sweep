@@ -1,0 +1,29 @@
+# Selects the Xcode and installs the XcodeGen that scripts/test.sh expects.
+# Shared by every workflow that runs the tests, so the toolchain is pinned in one place.
+name: Set up toolchain
+description: Select Xcode 27.2 and install a pinned, checksum-verified XcodeGen.
+
+runs:
+  using: composite
+  steps:
+    - name: Select Xcode 27.2
+      shell: bash
+      run: echo "DEVELOPER_DIR=/Applications/Xcode_27.2.app/Contents/Developer" >> "$GITHUB_ENV"
+
+    - name: Install XcodeGen
+      shell: bash
+      env:
+        XCODEGEN_VERSION: 2.44.1
+        XCODEGEN_SHA256: a2e905fb68446e9bb4008cdfe2e13e3f176d0cbcca828b71770f8e53fca91b73
+      run: |
+        curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" \
+          "https://github.com/yonaskolb/XcodeGen/releases/download/$XCODEGEN_VERSION/xcodegen.zip"
+        echo "$XCODEGEN_SHA256  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+        unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+        echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
+
+    - name: Show toolchain
+      shell: bash
+      run: |
+        xcodebuild -version
+        xcodegen --version
