@@ -23,10 +23,13 @@ The script generates `BrickSweep.xcodeproj` with XcodeGen first, so there is no 
 | Destination | `platform=iOS Simulator,name=iPhone 18 Pro,OS=27.2` |
 | Derived data | `build/DerivedData` |
 | Result bundle | `build/TestResults/<scope>-<UTC timestamp>.xcresult` |
+| Raw log | Same path as the result bundle, ending `.log` |
 | Signing | Off (`CODE_SIGNING_ALLOWED=NO`); simulator builds don't need it and CI has no identity |
 | CI runner | GitHub-hosted `xcode-27` image, which has Xcode 27.2 and the iPhone 18 Pro on iOS 27.2 |
 
 `build/` is gitignored. Each run writes a new result bundle because `xcodebuild` won't overwrite one, so old bundles collect in `build/TestResults/` until you delete them.
+
+Console output goes through `xcbeautify` when it is installed (CI has it). `xcbeautify` doesn't show all Swift Testing output, so the script also saves the raw `xcodebuild` output as the `.log` file and finishes by printing Swift Testing's summary line (for example `Test run with 123 tests in 18 suites passed`).
 
 Open a result bundle in Xcode to see failures, logs and attachments:
 
@@ -42,7 +45,7 @@ open build/TestResults/unit-20261123-164835.xcresult
 - installs a pinned XcodeGen release (2.44.1) and checks its SHA-256 before using it
 - needs no secrets; the unit tests use mock clients and stores and make no network calls
 - fails the check if the project won't generate, the build fails or any test fails
-- uploads the result bundle and `build/DerivedData/Logs` as the `unit-test-results` artifact when a run fails, kept for 14 days
+- uploads the result bundle, the raw log and `build/DerivedData/Logs` as the `unit-test-results` artifact when a run fails, kept for 14 days
 
 A newer push to a pull request cancels the run already going for it.
 

@@ -54,6 +54,7 @@ jobs:
           name: unit-test-results
           path: |
             build/TestResults/unit.xcresult
+            build/TestResults/unit.log
             build/DerivedData/Logs
           retention-days: 14
           if-no-files-found: ignore

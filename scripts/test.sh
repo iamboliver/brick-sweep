@@ -81,8 +81,15 @@ test_command=(
     CODE_SIGNING_ALLOWED=NO
 )
 
-if command -v xcbeautify >/dev/null; then
-    "${test_command[@]}" 2>&1 | xcbeautify
-else
-    "${test_command[@]}"
-fi
+formatter=(cat)
+command -v xcbeautify >/dev/null && formatter=(xcbeautify)
+
+# xcbeautify drops some Swift Testing output, so keep the raw log and repeat its summary.
+log="${result_bundle%.xcresult}.log"
+status=0
+"${test_command[@]}" 2>&1 | tee "$log" | "${formatter[@]}" || status=$?
+
+echo
+grep -E 'Test run with [0-9]+ tests|\*\* TEST (SUCCEEDED|FAILED)' "$log" || true
+echo "Full log: $log"
+exit "$status"
