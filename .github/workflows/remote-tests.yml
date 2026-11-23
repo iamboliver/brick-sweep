@@ -18,7 +18,7 @@ on:
       simulator_name:
         description: Simulator device
         type: string
-        default: iPhone 18 Pro
+        default: iPhone 18 Pro Max
       simulator_os:
         description: Simulator iOS version
         type: string
