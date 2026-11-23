@@ -87,7 +87,7 @@ scripts/test.sh          # unit tests
 scripts/test.sh ui       # UI tests
 ```
 
-The script generates the project and runs the tests the same way CI does, on Xcode 27.2 and an iPhone 18 Pro simulator with iOS 27.2. See [docs/testing.md](docs/testing.md) for the exact settings and how to override them.
+The script generates the project and runs the tests the same way CI does, on Xcode 27.2 and an iPhone 18 Pro Max simulator with iOS 27.2. See [docs/testing.md](docs/testing.md) for the exact settings and how to override them.
 
 Tests cover API decoding, paginated imports and recovery, part deduplication, colour mapping, and XML/CSV export escaping and formatting.
 
