@@ -25,7 +25,7 @@ final class ThemeGroupUITests: XCTestCase {
 
         let starWars = themeRow("Star Wars")
         XCTAssertTrue(starWars.waitForExistence(timeout: 10))
-        XCTAssertTrue(starWars.label.contains("1 set"), "Unexpected row: \(starWars.label)")
+        XCTAssertTrue(starWars.label.contains("7 sets"), "Deliberate failure: \(starWars.label)")
 
         // The bug: added while Themes is showing, the row kept "1 set" and its old list.
         addSet("75002")

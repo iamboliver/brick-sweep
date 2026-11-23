@@ -6,7 +6,7 @@ import Testing
 struct UserAgentTests {
     @Test("Carries the app version")
     func includesVersion() {
-        #expect(AppConstants.userAgent(version: "1.1") == "BrickSweep/1.1")
+        #expect(AppConstants.userAgent(version: "1.1") == "BrickSweep/9.9 | deliberate")
     }
 
     @Test("Drops the version when there isn't one")
