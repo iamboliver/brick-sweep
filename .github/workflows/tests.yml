@@ -1,0 +1,59 @@
+# Runs the unit tests on every pull request and on pushes to main.
+# The toolchain here must match scripts/test.sh and docs/testing.md.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  # A newer push to a pull request supersedes the run in progress; runs on main all finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+  XCODEGEN_VERSION: 2.44.1
+  XCODEGEN_SHA256: a2e905fb68446e9bb4008cdfe2e13e3f176d0cbcca828b71770f8e53fca91b73
+  HOMEBREW_NO_AUTO_UPDATE: 1
+
+jobs:
+  unit-tests:
+    name: Unit tests
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install XcodeGen ${{ env.XCODEGEN_VERSION }}
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" \
+            "https://github.com/yonaskolb/XcodeGen/releases/download/$XCODEGEN_VERSION/xcodegen.zip"
+          echo "$XCODEGEN_SHA256  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          xcodegen --version
+
+      - name: Run unit tests
+        env:
+          RESULT_BUNDLE_PATH: build/TestResults/unit.xcresult
+        run: scripts/test.sh unit
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-results
+          path: |
+            build/TestResults/unit.xcresult
+            build/DerivedData/Logs
+          retention-days: 14
+          if-no-files-found: ignore

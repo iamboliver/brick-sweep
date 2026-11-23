@@ -34,6 +34,20 @@ Open a result bundle in Xcode to see failures, logs and attachments:
 open build/TestResults/unit-20261123-164835.xcresult
 ```
 
+## Continuous integration
+
+`.github/workflows/tests.yml` runs `scripts/test.sh unit` on every pull request and on every push to `main`. It:
+
+- uses the `xcode-27` runner and selects Xcode 27.2 with `DEVELOPER_DIR`, because the image defaults to 27.1
+- installs a pinned XcodeGen release (2.44.1) and checks its SHA-256 before using it
+- needs no secrets; the unit tests use mock clients and stores and make no network calls
+- fails the check if the project won't generate, the build fails or any test fails
+- uploads the result bundle and `build/DerivedData/Logs` as the `unit-test-results` artifact when a run fails, kept for 14 days
+
+A newer push to a pull request cancels the run already going for it.
+
+To bump XcodeGen, update `XCODEGEN_VERSION` and `XCODEGEN_SHA256` together (`shasum -a 256 xcodegen.zip` on the release's `xcodegen.zip`).
+
 ## Overrides
 
 Set these environment variables to change the defaults:
